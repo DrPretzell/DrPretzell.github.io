@@ -12,7 +12,6 @@ const CLIENT_VERSION = '1.21.11 · Modded';
 
 const MODRINTH = 'https://api.modrinth.com/v2';
 const STEVE = '/launcher/assets/steve-head.png';
-const HERO = '/launcher/assets/hero.png';
 const PATHOST = '/launcher/assets/pathost.png';
 
 const LS = {
@@ -641,7 +640,7 @@ function launchpadView() {
 	'</div>' +
 	'<div class="lp">' +
 		'<div class="lp-main">' +
-			'<section class="hero" style="background-image:linear-gradient(180deg,rgba(6,7,10,.5),rgba(6,7,10,.86)),url(\'' + HERO + '\')">' +
+			'<section class="hero">' +
 				'<div class="hero-inner">' +
 					'<button class="launch" data-action="launch" onclick="location.href=&quot;/pretzel-client/client.html&quot;">Launch Game' +
 						'<small><span>Pretzel Client 1.21.11 modded build</span><span class="sep"></span><span>Browser</span></small>' +

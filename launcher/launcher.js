@@ -8,6 +8,8 @@
 // Servers come from /api/launcher/servers (proxied list), mods from Modrinth.
 
 const CLIENT_URL = '/pretzel-client/client.html';
+const CLIENT_VERSION = '1.21.11 · Modded';
+
 const MODRINTH = 'https://api.modrinth.com/v2';
 const STEVE = '/launcher/assets/steve-head.png';
 const HERO = '/launcher/assets/hero.png';
@@ -615,6 +617,15 @@ function onlineTotal() {
 	return state.servers.reduce((sum, s) => sum + (Number(s.players) || 0), 0);
 }
 
+function versionCard() {
+	return '<section class="partner version-card" aria-label="Installed client version">' +
+		'<img class="partner-logo" src="/pretzel-logo.png" alt="">' +
+		'<div class="partner-text"><span class="name">' + CLIENT_VERSION + '</span>' +
+		'<span class="role">Installed version &middot; Pretzel Essentials built in</span></div>' +
+		'<span class="version-badge">ACTIVE</span>' +
+	'</section>';
+}
+
 function launchpadView() {
 	const account = currentAccount();
 	const greeting = account ? 'Welcome Back ' + esc(account.username) : 'Welcome to Pretzel Client';
@@ -639,7 +650,7 @@ function launchpadView() {
 			'</section>' +
 			newsSection() +
 		'</div>' +
-		'<div class="lp-side">' + serverStrip() + friendsPanel() +
+		'<div class="lp-side">' + versionCard() + serverStrip() + friendsPanel() +
 			'<div class="side-spacer"></div>' + premiumCard() +
 		'</div>' +
 	'</div>';

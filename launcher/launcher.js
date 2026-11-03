@@ -323,10 +323,10 @@ function renderRail() {
 }
 
 function clientPill() {
-	if (!state.status) return { cls: 'ok', text: 'browser build' };
-	if (state.status.bundle && state.status.bundle.available) return { cls: 'ok', text: 'client ready' };
+	if (!state.status) return { cls: 'ok', text: 'modded client' };
+	if (state.status.bundle && state.status.bundle.available) return { cls: 'ok', text: 'modded client ready' };
 	if (state.status.build && state.status.build.state === 'linking') return { cls: 'warn', text: 'linking client' };
-	return { cls: 'ok', text: 'prebuilt 1.21.11' };
+	return { cls: 'bad', text: 'modded build required' };
 }
 
 function renderTopbar() {
@@ -622,7 +622,7 @@ function launchpadView() {
 
 	return '' +
 	(state.announceDismissed ? '' :
-		'<div class="announce"><span>Pretzel Client 1.21.11 is live &middot; Fabric mods built in &middot; play in your browser</span>' +
+		'<div class="announce"><span>Pretzel Client 1.21.11 is live &middot; Modded source build &middot; play in your browser</span>' +
 		'<button class="announce-x" data-action="dismiss-announce" aria-label="Dismiss">&times;</button></div>') +
 	'<div class="welcome-row">' +
 		'<h1>' + greeting + '</h1>' +
@@ -633,7 +633,7 @@ function launchpadView() {
 			'<section class="hero" style="background-image:linear-gradient(180deg,rgba(6,7,10,.5),rgba(6,7,10,.86)),url(\'' + HERO + '\')">' +
 				'<div class="hero-inner">' +
 					'<button class="launch" data-action="launch">Launch Game' +
-						'<small><span>Pretzel Client 1.21.11 with Fabric</span><span class="sep"></span><span>Browser</span></small>' +
+						'<small><span>Pretzel Client 1.21.11 modded build</span><span class="sep"></span><span>Browser</span></small>' +
 					'</button>' +
 				'</div>' +
 			'</section>' +

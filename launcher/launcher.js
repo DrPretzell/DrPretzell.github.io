@@ -660,9 +660,14 @@ function friendsPanel() {
 function serverStrip() {
 	const servers = (state.servers || []).slice(0, 6);
 	if (!servers.length) return '';
-	return '<div class="server-strip">' + servers.map((s) =>
-		'<button class="strip-tile" data-action="go-server:' + esc(s.id) + '" title="' + esc(s.name) + '"' +
-		' style="--strip-h:' + serverHue(s.name) + '"><span>' + esc(serverInitials(s.name)) + '</span></button>').join('') + '</div>';
+	return '<div class="server-strip">' + servers.map((s) => {
+		const logo = s.icon
+			? '<img src="' + esc(s.icon) + '" alt="" loading="lazy" onload="this.parentElement.classList.add(\'has-logo\')" onerror="this.remove()">'
+			: '';
+		return '<button class="strip-tile" data-action="go-server:' + esc(s.id) + '" title="' + esc(s.name) + '"' +
+			' style="--strip-h:' + serverHue(s.name) + '">' + logo +
+			'<span>' + esc(serverInitials(s.name)) + '</span></button>';
+	}).join('') + '</div>';
 }
 
 function onlineTotal() {
@@ -736,10 +741,8 @@ function serverMedia(server, eager) {
 	const banner = String(server.banner || '');
 	const isVideo = /\.webm(\?|$)/i.test(banner);
 	const loading = eager ? '' : ' loading="lazy"';
-	const autoplay = eager ? ' autoplay' : '';
 	if (isVideo) {
-		if (!eager) return serverArt(server);
-		return serverArt(server) + '<video src="' + esc(banner) + '" muted loop playsinline preload="none"' + autoplay +
+		return serverArt(server) + '<video src="' + esc(banner) + '" muted loop playsinline autoplay preload="auto"' +
 			' onerror="this.remove()"></video>';
 	}
 	if (banner) {
@@ -763,8 +766,9 @@ function serverCard(server) {
 	'<article class="server">' +
 		'<div class="server-media" data-action="server:' + esc(server.id) + '">' +
 			serverMedia(server) + serverIcon(server) +
-			'<span class="server-players' + (server.custom ? ' official' : '') + '">' +
+			'			<span class="server-players' + (server.custom ? ' official' : '') + '">' +
 				(server.custom ? 'Official server' : compact(server.players || 0) + ' online') + '</span>' +
+			(server.badge ? '<span class="server-rank">' + esc(server.badge) + '</span>' : '') +
 		'</div>' +
 		'<div class="server-body">' +
 			'<div class="server-title" data-action="server:' + esc(server.id) + '"><h4>' + esc(server.name) + '</h4>' +

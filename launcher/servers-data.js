@@ -26,11 +26,12 @@ window.PRETZEL_SERVERS = [
 			"Economy",
 			"Survival"
 		],
-		"players": 1673,
+		"players": 1765,
 		"version": "Eaglercraft",
-		"banner": "/launcher/assets/bagel-smp.svg",
+		"banner": "https://storage.topeaglerservers.com/banners/071ed973.webm?v=1788369280",
 		"icon": "/launcher/assets/bagel-smp-icon.svg",
-		"website": "https://www.bagelsmp.com/"
+		"website": "https://www.bagelsmp.com/",
+		"badge": "#1 TopEaglercraft"
 	},
 	{
 		"id": "srv-001",

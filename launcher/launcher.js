@@ -22,7 +22,30 @@ const LS = {
 	pendingSkin: 'pretzel.pendingSkin.v1',
 };
 
-const OWNER = null;
+const OWNER = {
+	username: 'DrPretzell',
+	email: 'DrPretzell@gmail.com',
+	passwordHash: '1d7886d3f87d93e3d88b565706a9114a25befc2847686231f44eb90046cee51e',
+};
+
+const SEED_NEWS = [
+	{
+		id: 'news-welcome',
+		banner: '/pretzel-logo.png',
+		title: 'Welcome to Pretzel Client',
+		description: 'The 1.21.11 browser build is live. Launch the modded client and jump straight into the Pretzelverse.',
+		author: 'DrPretzell',
+		createdAt: Date.UTC(2026, 9, 3, 12),
+	},
+	{
+		id: 'news-essentials',
+		banner: '/pretzel-logo.png',
+		title: 'Pretzel Essentials is built in',
+		description: 'The modded build now includes the HUD, keystroke overlay and quick toggles. No extra setup required.',
+		author: 'DrPretzell',
+		createdAt: Date.UTC(2026, 9, 12, 12),
+	},
+];
 
 const NAV = [
 	{ id: 'launchpad', label: 'Launchpad', icon: '<path d="M13.5 4.5c3.6-.6 5.5-1 6-1-.1.5-.5 2.4-1.1 6-.5 3-2.3 5.3-4.9 6.6l-1 3.4-2.3-3.4-3.3-2.3 3.4-1c1.3-2.6 3.6-4.4 6.6-4.9Z"/><circle cx="14.6" cy="8.9" r="1.5"/>' },
@@ -90,8 +113,28 @@ function saveAccounts(list) {
 }
 
 async function seedOwner() {
-	// Static public build: no seeded account credentials.
-	return;
+	const list = accounts();
+	const existing = list.find((a) => a.username.toLowerCase() === OWNER.username.toLowerCase());
+	if (existing) {
+		if (existing.role !== 'owner' || existing.passwordHash !== OWNER.passwordHash || existing.email !== OWNER.email) {
+			existing.role = 'owner';
+			existing.passwordHash = OWNER.passwordHash;
+			existing.email = OWNER.email;
+			saveAccounts(list);
+		}
+		return;
+	}
+	list.push({
+		username: OWNER.username,
+		email: OWNER.email,
+		role: 'owner',
+		passwordHash: OWNER.passwordHash,
+		skin: null,
+		friends: [],
+		requests: [],
+		sent: [],
+	});
+	saveAccounts(list);
 }
 
 function currentAccount() {
@@ -158,6 +201,18 @@ function newsList() {
 
 function saveNews(list) {
 	write(LS.news, list);
+}
+
+function seedNews() {
+	const list = newsList();
+	let changed = false;
+	for (const post of SEED_NEWS) {
+		if (!list.some((item) => item.id === post.id)) {
+			list.push(Object.assign({}, post));
+			changed = true;
+		}
+	}
+	if (changed) saveNews(list);
 }
 
 // ------------------------------------------------------------------ data
@@ -1217,6 +1272,7 @@ document.addEventListener('input', (event) => {
 
 (async function boot() {
 	await seedOwner();
+	seedNews();
 	state.pendingSkin = read(LS.pendingSkin, null);
 	render();
 	loadStatus().then(renderTopbar);

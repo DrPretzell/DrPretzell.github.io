@@ -632,7 +632,7 @@ function launchpadView() {
 		'<div class="lp-main">' +
 			'<section class="hero" style="background-image:linear-gradient(180deg,rgba(6,7,10,.5),rgba(6,7,10,.86)),url(\'' + HERO + '\')">' +
 				'<div class="hero-inner">' +
-					'<button class="launch" data-action="launch" onclick="location.href='/pretzel-client/client.html'">Launch Game' +
+					'<button class="launch" data-action="launch" onclick="location.href=&quot;/pretzel-client/client.html&quot;">Launch Game' +
 						'<small><span>Pretzel Client 1.21.11 modded build</span><span class="sep"></span><span>Browser</span></small>' +
 					'</button>' +
 				'</div>' +

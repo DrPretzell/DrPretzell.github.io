@@ -1024,3 +1024,15 @@ button { cursor: pointer; }
 	font: 700 10px/1 "Cascadia Mono", ui-monospace, monospace;
 	letter-spacing: .08em;
 }
+
+.news-remove {
+	position: absolute; top: 9px; right: 9px; z-index: 3;
+	width: 28px; height: 28px;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 105, 105, .35);
+	background: rgba(9, 10, 14, .82);
+	color: #ff8a8a;
+	display: grid; place-items: center;
+	cursor: pointer;
+}
+.news-remove:hover { background: rgba(70, 15, 20, .92); border-color: rgba(255, 120, 120, .7); color: #ffb4b4; }

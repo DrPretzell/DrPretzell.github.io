@@ -19,6 +19,7 @@ const LS = {
 	session: 'pretzel.session.v1',
 	installed: 'pretzel.installed.v1',
 	news: 'pretzel.news.v1',
+	newsSeeded: 'pretzel.news.seeded.v1',
 	pendingSkin: 'pretzel.pendingSkin.v1',
 };
 
@@ -45,6 +46,13 @@ const SEED_NEWS = [
 		author: 'DrPretzell',
 		createdAt: Date.UTC(2026, 9, 12, 12),
 	},
+];
+
+const FALLBACK_SERVERS = [
+	{ id: 'mercurymc', name: 'MercuryMC', address: 'wss://mercurymc.net', description: 'Competitive factions, PvP and survival.', tags: ['PvP', 'Factions', 'Survival'], players: 44, version: '1.8.8', icon: '', banner: '' },
+	{ id: 'archmc', name: 'ArchMC', address: 'wss://arch.mc', description: 'PvP, minigames, survival and creative network.', tags: ['PvP', 'Minigames', 'Survival'], players: 1126, version: '1.8.8', icon: '', banner: '' },
+	{ id: 'zentic', name: 'Zentic Network', address: 'wss://zentic.cc', description: 'Bedwars, duels, skywars and crystal FFA.', tags: ['PvP', 'Bedwars', 'Minigames'], players: 150, version: '1.8.8', icon: '', banner: '' },
+	{ id: 'krypticmc', name: 'KrypticMC', address: 'wss://krypticmc.net', description: 'KitPvP, lifesteal, prison, bedwars and more.', tags: ['PvP', 'Survival', 'Minigames'], players: 75, version: '1.8.8', icon: '', banner: '' },
 ];
 
 const NAV = [
@@ -204,6 +212,7 @@ function saveNews(list) {
 }
 
 function seedNews() {
+	if (read(LS.newsSeeded, false)) return;
 	const list = newsList();
 	let changed = false;
 	for (const post of SEED_NEWS) {
@@ -213,6 +222,7 @@ function seedNews() {
 		}
 	}
 	if (changed) saveNews(list);
+	write(LS.newsSeeded, true);
 }
 
 // ------------------------------------------------------------------ data
@@ -238,11 +248,12 @@ async function loadServers(force) {
 		const res = await fetch('/api/launcher/servers', { cache: 'no-store' });
 		if (!res.ok) throw new Error('HTTP ' + res.status);
 		const data = await res.json();
-		state.servers = (Array.isArray(data.servers) ? data.servers : []).concat(manualList);
-		state.serverError = state.servers.length ? '' : 'The server list came back empty.';
+		const remote = Array.isArray(data.servers) ? data.servers : [];
+		state.servers = (remote.length ? remote : FALLBACK_SERVERS).concat(manualList);
+		state.serverError = '';
 	} catch (e) {
-		state.servers = manualList;
-		state.serverError = state.servers.length ? '' : 'Could not reach the server list.';
+		state.servers = FALLBACK_SERVERS.concat(manualList);
+		state.serverError = '';
 	}
 	if (state.view === 'servers') renderView();
 }
@@ -606,7 +617,8 @@ function newsSection() {
 				'<img src="' + esc(item.banner) + '" alt="">' +
 				'<span class="news-dot"></span>' +
 				'<span class="news-arrow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M8 16 16 8M9 8h7v7"/></svg></span>' +
-			'</div>' +
+				(isOwner ? '<button class="news-remove" type="button" data-action="delete-news:' + esc(item.id) + '" aria-label="Delete post" title="Delete post"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>' : '') +
+						'</div>' +
 			'<div class="news-body">' +
 				'<h4>' + esc(item.title) + '</h4>' +
 				'<p>' + esc(item.description) + '</p>' +
@@ -980,6 +992,21 @@ document.addEventListener('click', async (event) => {
 	if (action === 'dismiss-announce') {
 		state.announceDismissed = true;
 		renderView();
+		return;
+	}
+	if (action.startsWith('delete-news:')) {
+		const account = currentAccount();
+		if (!account || account.role !== 'owner') {
+			toast('Only the owner can delete news.', 'bad');
+			return;
+		}
+		const id = action.slice(12);
+		const item = newsList().find((post) => post.id === id);
+		if (!item) return;
+		if (!confirm('Delete "' + item.title + '"?')) return;
+		saveNews(newsList().filter((post) => post.id !== id));
+		render();
+		toast('News deleted', 'good');
 		return;
 	}
 	if (action.startsWith('post:')) {

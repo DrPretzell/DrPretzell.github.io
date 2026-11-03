@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Pretzel SMP">
+	<defs>
+		<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#ffd47a"/>
+			<stop offset="1" stop-color="#e0a63c"/>
+		</linearGradient>
+	</defs>
+	<rect width="128" height="128" rx="28" fill="#0b0d12"/>
+	<rect x="1" y="1" width="126" height="126" rx="27" fill="none" stroke="#f2b84b" stroke-opacity=".34"/>
+	<g transform="translate(64 64) scale(.34)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-width="30">
+		<path d="M-150 0c0-72 58-130 130-130s130 58 130 130-58 130-130 130"/>
+		<path d="M-150 0c0 72 58 130 130 130s130-58 130-130"/>
+		<path d="M-30-128c46 62 46 194 0 256"/>
+		<path d="M30-128c-46 62-46 194 0 256"/>
+	</g>
+</svg>

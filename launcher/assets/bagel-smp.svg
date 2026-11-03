@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="Bagel SMP">
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#1b120c"/>
+			<stop offset=".52" stop-color="#0d0d11"/>
+			<stop offset="1" stop-color="#05060a"/>
+		</linearGradient>
+		<radialGradient id="glow" cx=".78" cy=".42" r=".62">
+			<stop offset="0" stop-color="#f0a45c" stop-opacity=".24"/>
+			<stop offset="1" stop-color="#f0a45c" stop-opacity="0"/>
+		</radialGradient>
+		<linearGradient id="bagel" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#ffe0a8"/>
+			<stop offset=".45" stop-color="#dfa05a"/>
+			<stop offset="1" stop-color="#a86230"/>
+		</linearGradient>
+		<linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#fff4de"/>
+			<stop offset="1" stop-color="#e8c798"/>
+		</linearGradient>
+	</defs>
+
+	<rect width="1280" height="720" fill="url(#bg)"/>
+	<rect width="1280" height="720" fill="url(#glow)"/>
+
+	<g opacity=".45" stroke="#e8b276" stroke-opacity=".12" stroke-width="2">
+		<path d="M0 540h1280M0 600h1280M0 660h1280M0 480h1280"/>
+	</g>
+
+	<g transform="translate(985 348)" fill="none">
+		<circle r="164" stroke="url(#bagel)" stroke-width="74"/>
+		<circle r="164" stroke="#ffe1b0" stroke-opacity=".22" stroke-width="7"/>
+		<g fill="#f7d9a4">
+			<ellipse cx="-58" cy="-164" rx="4" ry="10" transform="rotate(-18 -58 -164)"/>
+			<ellipse cx="16" cy="-171" rx="4" ry="10" transform="rotate(12 16 -171)"/>
+			<ellipse cx="96" cy="-131" rx="4" ry="10" transform="rotate(42 96 -131)"/>
+			<ellipse cx="153" cy="-61" rx="4" ry="10" transform="rotate(70 153 -61)"/>
+			<ellipse cx="165" cy="31" rx="4" ry="10" transform="rotate(96 165 31)"/>
+			<ellipse cx="116" cy="124" rx="4" ry="10" transform="rotate(126 116 124)"/>
+			<ellipse cx="29" cy="168" rx="4" ry="10" transform="rotate(154 29 168)"/>
+			<ellipse cx="-62" cy="157" rx="4" ry="10" transform="rotate(184 -62 157)"/>
+			<ellipse cx="-140" cy="96" rx="4" ry="10" transform="rotate(214 -140 96)"/>
+			<ellipse cx="-167" cy="-10" rx="4" ry="10" transform="rotate(244 -167 -10)"/>
+			<ellipse cx="-128" cy="-104" rx="4" ry="10" transform="rotate(272 -128 -104)"/>
+		</g>
+	</g>
+
+	<text x="84" y="202" fill="#f2b84b" font-family="Segoe UI, Arial, sans-serif" font-size="30" letter-spacing="9" font-weight="600">COMMUNITY SERVER</text>
+	<text x="80" y="352" fill="#fffaf0" font-family="Segoe UI, Arial, sans-serif" font-size="126" font-weight="800" letter-spacing="1">BAGEL</text>
+	<text x="84" y="474" fill="url(#cream)" font-family="Segoe UI, Arial, sans-serif" font-size="126" font-weight="800" letter-spacing="1">SMP</text>
+	<text x="88" y="545" fill="#c3ccd8" font-family="Segoe UI, Arial, sans-serif" font-size="27">Survival &#183; Economy &#183; Events</text>
+
+	<g transform="translate(88 606)" fill="#f2b84b">
+		<rect width="7" height="7" rx="1.5"/>
+		<rect x="18" width="7" height="7" rx="1.5" opacity=".6"/>
+		<rect x="36" width="7" height="7" rx="1.5" opacity=".3"/>
+	</g>
+	<text x="88" y="662" fill="#7f8794" font-family="Segoe UI, Arial, sans-serif" font-size="22" letter-spacing="3">WSS://TOP.BAGELSMP.COM</text>
+</svg>

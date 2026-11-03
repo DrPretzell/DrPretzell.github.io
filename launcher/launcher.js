@@ -48,7 +48,9 @@ const SEED_NEWS = [
 	},
 ];
 
-const FALLBACK_SERVERS = [
+const SERVER_PAGE_SIZE = 10;
+const SERVER_CATALOG = Array.isArray(window.PRETZEL_SERVERS) ? window.PRETZEL_SERVERS : [];
+const FALLBACK_SERVERS = SERVER_CATALOG.length ? SERVER_CATALOG : [
 	{ id: 'mercurymc', name: 'MercuryMC', address: 'wss://mercurymc.net', description: 'Competitive factions, PvP and survival.', tags: ['PvP', 'Factions', 'Survival'], players: 44, version: '1.8.8', icon: '', banner: '' },
 	{ id: 'archmc', name: 'ArchMC', address: 'wss://arch.mc', description: 'PvP, minigames, survival and creative network.', tags: ['PvP', 'Minigames', 'Survival'], players: 1126, version: '1.8.8', icon: '', banner: '' },
 	{ id: 'zentic', name: 'Zentic Network', address: 'wss://zentic.cc', description: 'Bedwars, duels, skywars and crystal FFA.', tags: ['PvP', 'Bedwars', 'Minigames'], players: 150, version: '1.8.8', icon: '', banner: '' },
@@ -73,6 +75,7 @@ const state = {
 	serverError: '',
 	serverQuery: '',
 	serverTag: '',
+	serverPage: 1,
 	serverDetail: null,
 	mods: null,
 	modsError: '',
@@ -239,22 +242,9 @@ async function loadStatus() {
 async function loadServers(force) {
 	const manual = read('pretzel.manualServers.v1', []);
 	const manualList = Array.isArray(manual) ? manual : [];
-	if (state.servers && !force) {
-		state.servers = state.servers.filter((s) => !s.manual).concat(manualList);
-		if (state.view === 'servers') renderView();
-		return;
-	}
-	try {
-		const res = await fetch('/api/launcher/servers', { cache: 'no-store' });
-		if (!res.ok) throw new Error('HTTP ' + res.status);
-		const data = await res.json();
-		const remote = Array.isArray(data.servers) ? data.servers : [];
-		state.servers = (remote.length ? remote : FALLBACK_SERVERS).concat(manualList);
-		state.serverError = '';
-	} catch (e) {
-		state.servers = FALLBACK_SERVERS.concat(manualList);
-		state.serverError = '';
-	}
+	state.servers = FALLBACK_SERVERS.concat(manualList);
+	state.serverError = '';
+	state.serverPage = 1;
 	if (state.view === 'servers') renderView();
 }
 
@@ -551,10 +541,7 @@ function newsModalBody() {
 function serverModalBody() {
 	const server = state.serverDetail;
 	if (!server) return '';
-	const banner = String(server.banner || '');
-	const full = /\.webm(\?|$)/i.test(banner)
-		? '<video src="' + esc(banner) + '" muted loop playsinline autoplay></video>'
-		: banner ? '<img src="' + esc(banner) + '" alt="">' : '<div class="banner-empty">No banner</div>';
+	const full = serverMedia(server, true);
 	return '' +
 	'<div class="modal-head"><h3>' + esc(server.name) + '</h3>' +
 		'<p>' + (server.custom ? 'Official server' : compact(server.players) + ' online') +
@@ -675,7 +662,7 @@ function serverStrip() {
 	if (!servers.length) return '';
 	return '<div class="server-strip">' + servers.map((s) =>
 		'<button class="strip-tile" data-action="go-server:' + esc(s.id) + '" title="' + esc(s.name) + '"' +
-		(s.icon ? ' style="background-image:url(\'' + esc(s.icon) + '\')"' : '') + '></button>').join('') + '</div>';
+		' style="--strip-h:' + serverHue(s.name) + '"><span>' + esc(serverInitials(s.name)) + '</span></button>').join('') + '</div>';
 }
 
 function onlineTotal() {
@@ -724,18 +711,58 @@ function launchpadView() {
 
 // ---------------------------------------------------------------- servers
 
-function serverCard(server) {
+function serverInitials(name) {
+	return String(name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2)
+		.map((part) => part.charAt(0)).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+function serverHue(name) {
+	let hash = 0;
+	const text = String(name || '');
+	for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) % 360;
+	return hash;
+}
+
+function serverArt(server) {
+	const address = String(server.address || '').replace(/^wss?:\/\//i, '');
+	return '<div class="server-art" style="--art-h:' + serverHue(server.name) + '">' +
+		'<span class="server-art-initials">' + esc(serverInitials(server.name)) + '</span>' +
+		'<span class="server-art-name">' + esc(server.name) + '</span>' +
+		'<span class="server-art-addr">' + esc(address) + '</span>' +
+	'</div>';
+}
+
+function serverMedia(server, eager) {
 	const banner = String(server.banner || '');
 	const isVideo = /\.webm(\?|$)/i.test(banner);
-	const media = isVideo
-		? '<video src="' + esc(banner) + '" muted loop playsinline preload="none"></video>'
-		: banner ? '<img class="ban" src="' + esc(banner) + '" alt="" loading="lazy">' : '<div class="fallback"></div>';
+	const loading = eager ? '' : ' loading="lazy"';
+	const autoplay = eager ? ' autoplay' : '';
+	if (isVideo) {
+		if (!eager) return serverArt(server);
+		return serverArt(server) + '<video src="' + esc(banner) + '" muted loop playsinline preload="none"' + autoplay +
+			' onerror="this.remove()"></video>';
+	}
+	if (banner) {
+		return serverArt(server) + '<img class="ban" src="' + esc(banner) + '" alt=""' + loading +
+			' onerror="this.remove()">';
+	}
+	return serverArt(server);
+}
+
+function serverIcon(server) {
+	const image = server.icon
+		? '<img src="' + esc(server.icon) + '" alt="" loading="lazy" onload="this.parentElement.classList.add(\'has-image\')" onerror="this.remove()">'
+		: '';
+	return '<div class="server-icon">' + image + '<span>' + esc(serverInitials(server.name)) + '</span></div>';
+}
+
+function serverCard(server) {
 	const tags = (server.tags || []).slice(0, 3)
 		.map((t) => '<span class="tagpill">' + esc(t) + '</span>').join('');
 	return '' +
 	'<article class="server">' +
-		'<div class="server-media" data-action="server:' + esc(server.id) + '">' + media +
-			(server.icon ? '<div class="server-icon" style="background-image:url(\'' + esc(server.icon) + '\')"></div>' : '') +
+		'<div class="server-media" data-action="server:' + esc(server.id) + '">' +
+			serverMedia(server) + serverIcon(server) +
 			'<span class="server-players' + (server.custom ? ' official' : '') + '">' +
 				(server.custom ? 'Official server' : compact(server.players || 0) + ' online') + '</span>' +
 		'</div>' +
@@ -764,23 +791,55 @@ function filteredServers() {
 	});
 }
 
+function serverPager(total, page, pages) {
+	if (pages <= 1) return '';
+	const start = total ? (page - 1) * SERVER_PAGE_SIZE + 1 : 0;
+	const end = Math.min(page * SERVER_PAGE_SIZE, total);
+	let buttons = '';
+	for (let i = 1; i <= pages; i++) {
+		buttons += '<button class="server-page-btn' + (i === page ? ' on' : '') + '" data-action="server-page:' + i + '"' +
+			(i === page ? ' aria-current="page"' : '') + '>' + i + '</button>';
+	}
+	return '<div class="server-pager">' +
+		'<div class="server-pager-count">Showing ' + start.toLocaleString() + '\u2013' + end.toLocaleString() +
+			' of ' + Number(total).toLocaleString() + ' servers</div>' +
+		'<div class="server-pager-controls">' +
+			'<button class="server-page-arrow" data-action="server-page:' + (page - 1) + '"' +
+				(page <= 1 ? ' disabled' : '') + ' aria-label="Previous page">\u2039</button>' +
+			buttons +
+			'<button class="server-page-arrow" data-action="server-page:' + (page + 1) + '"' +
+				(page >= pages ? ' disabled' : '') + ' aria-label="Next page">\u203a</button>' +
+		'</div>' +
+		'<div class="server-pager-label">Page ' + page.toLocaleString() + ' of ' + pages.toLocaleString() + '</div>' +
+	'</div>';
+}
+
 function serversView() {
 	const tags = Array.from(new Set((state.servers || []).flatMap((s) => s.tags || []))).slice(0, 8);
 	const list = filteredServers();
 	let body;
 	if (state.servers === null) {
-		body = '<div class="skeleton"><span class="spinner"></span> Loading servers…</div>';
+		body = '<div class="skeleton"><span class="spinner"></span> Loading servers\u2026</div>';
 	} else if (state.serverError) {
 		body = '<div class="note">' + esc(state.serverError) + ' <button class="link" data-action="reload-servers">Retry</button></div>';
 	} else if (!list.length) {
 		body = '<div class="empty">No servers match that search.</div>';
 	} else {
-		body = '<div class="server-grid">' + list.map(serverCard).join('') + '</div>';
+		const pages = Math.max(1, Math.ceil(list.length / SERVER_PAGE_SIZE));
+		const page = Math.min(Math.max(1, Number(state.serverPage) || 1), pages);
+		state.serverPage = page;
+		const start = (page - 1) * SERVER_PAGE_SIZE;
+		const visible = list.slice(start, start + SERVER_PAGE_SIZE);
+		body = '<div class="server-grid">' + visible.map(serverCard).join('') + '</div>' +
+			serverPager(list.length, page, pages);
 	}
+	const countText = state.servers
+		? (list.length === state.servers.length ? state.servers.length + ' servers' : list.length + ' matching servers')
+		: 'Top Eaglercraft servers';
 
 	return '' +
 	'<div class="page-head"><div><h1>Servers</h1>' +
-		'<p>' + (state.servers ? state.servers.length + ' servers in your list' : 'Live Eaglercraft server list') + '</p></div>' +
+		'<p>' + countText + ' \u00b7 10 per page</p></div>' +
 		'<button class="btn ghost-gold" data-action="add-server" style="width:auto;height:36px;padding:0 16px">Add Server</button></div>' +
 	'<div class="partner">' +
 		'<img class="partner-logo" src="' + PATHOST + '" alt="Path Host">' +
@@ -790,7 +849,7 @@ function serversView() {
 			'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 16 16 8M9 8h7v7"/></svg></a></span>' +
 	'</div>' +
 	'<div class="toolbar">' +
-		'<input class="input" id="serverSearch" placeholder="Search servers…" value="' + esc(state.serverQuery) + '">' +
+		'<input class="input" id="serverSearch" placeholder="Search servers\u2026" value="' + esc(state.serverQuery) + '">' +
 		'<button class="chip' + (state.serverTag ? '' : ' on') + '" data-action="server-tag:">All</button>' +
 		tags.map((t) => '<button class="chip' + (state.serverTag === t ? ' on' : '') + '" data-action="server-tag:' + esc(t) + '">' + esc(t) + '</button>').join('') +
 	'</div>' +
@@ -1057,7 +1116,15 @@ document.addEventListener('click', async (event) => {
 	}
 	if (action.startsWith('server-tag:')) {
 		state.serverTag = action.slice(11);
+		state.serverPage = 1;
 		renderView();
+		return;
+	}
+	if (action.startsWith('server-page:')) {
+		state.serverPage = Number(action.slice(12)) || 1;
+		renderView();
+		const view = document.getElementById('view');
+		if (view) view.scrollTo({ top: 0, behavior: 'smooth' });
 		return;
 	}
 	if (action.startsWith('server:')) {
@@ -1271,6 +1338,7 @@ document.addEventListener('keydown', (event) => {
 	const id = document.activeElement ? document.activeElement.id : '';
 	if (id === 'serverSearch') {
 		state.serverQuery = document.activeElement.value;
+		state.serverPage = 1;
 		renderView();
 	} else if (id === 'modSearch') {
 		state.modsQuery = document.activeElement.value;
@@ -1285,6 +1353,7 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('input', (event) => {
 	if (event.target.id === 'serverSearch') {
 		state.serverQuery = event.target.value;
+		state.serverPage = 1;
 		const caret = event.target.selectionStart;
 		renderView();
 		const input = document.getElementById('serverSearch');

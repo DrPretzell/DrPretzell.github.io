@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Bagel SMP">
+	<defs>
+		<linearGradient id="bagel" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#ffe0a8"/>
+			<stop offset=".5" stop-color="#dfa05a"/>
+			<stop offset="1" stop-color="#a86230"/>
+		</linearGradient>
+	</defs>
+	<rect width="128" height="128" rx="28" fill="#120d09"/>
+	<rect x="1" y="1" width="126" height="126" rx="27" fill="none" stroke="#f0a45c" stroke-opacity=".4"/>
+	<circle cx="64" cy="64" r="31" fill="none" stroke="url(#bagel)" stroke-width="19"/>
+	<g fill="#f7d9a4">
+		<ellipse cx="64" cy="24" rx="2.4" ry="5.2"/>
+		<ellipse cx="98" cy="43" rx="2.4" ry="5.2" transform="rotate(58 98 43)"/>
+		<ellipse cx="100" cy="84" rx="2.4" ry="5.2" transform="rotate(118 100 84)"/>
+		<ellipse cx="66" cy="104" rx="2.4" ry="5.2" transform="rotate(178 66 104)"/>
+		<ellipse cx="31" cy="87" rx="2.4" ry="5.2" transform="rotate(238 31 87)"/>
+		<ellipse cx="29" cy="45" rx="2.4" ry="5.2" transform="rotate(298 29 45)"/>
+	</g>
+</svg>

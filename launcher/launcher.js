@@ -13,6 +13,7 @@ const CLIENT_VERSION = '1.21.11 · Modded';
 const MODRINTH = 'https://api.modrinth.com/v2';
 const STEVE = '/launcher/assets/steve-head.png';
 const PATHOST = '/launcher/assets/pathost.png';
+const MC_HEADS = 'https://mc-heads.net';
 
 const LS = {
 	accounts: 'pretzel.accounts.v1',
@@ -197,13 +198,20 @@ function toast(message, kind) {
 	setTimeout(() => node.remove(), 4200);
 }
 
-// A player head: a 64x64 skin is cropped to its 8x8 face, anything else is
-// drawn as-is. Everyone without a skin shows the default Steve head.
-function headMarkup(skin, cls) {
-	const style = skin
-		? "background-image:url('" + skin + "');background-size:800% 800%;background-position:14.2857% 14.2857%;image-rendering:pixelated"
-		: "background-image:url('" + STEVE + "');background-size:cover;background-position:center";
-	return '<span class="head ' + (cls || '') + '" style="' + style + '"></span>';
+// A player head: a 64x64 uploaded skin is cropped to its 8x8 face. Accounts
+// without an uploaded skin use the same username's live Minecraft head.
+function headMarkup(skin, cls, username) {
+	if (skin) {
+		const style = "background-image:url('" + skin + "');background-size:800% 800%;background-position:14.2857% 14.2857%;image-rendering:pixelated";
+		return '<span class="head ' + (cls || '') + '" style="' + style + '"></span>';
+	}
+	if (username) {
+		const src = MC_HEADS + '/avatar/' + encodeURIComponent(username) + '/64';
+		return '<img class="head head-img ' + (cls || '') + '" src="' + esc(src) +
+			'" alt="" onerror="this.onerror=null;this.src=\'' + STEVE + '\'">';
+	}
+	return '<span class="head ' + (cls || '') + '" style="background-image:url(\'' + STEVE +
+		'\');background-size:cover;background-position:center"></span>';
 }
 
 function newsList() {
@@ -397,7 +405,7 @@ function renderTopbar() {
 	const avatar = document.getElementById('accountAvatar');
 	if (account) {
 		chip.className = 'account signed';
-		avatar.innerHTML = headMarkup(account.skin, 'head-24');
+		avatar.innerHTML = headMarkup(account.skin, 'head-24', account.username);
 		text.innerHTML = '<span>' + esc(account.username) + '</span>' +
 			(account.role === 'owner' ? ' <span class="owner-chip">Owner</span>' : '');
 	} else {
@@ -460,10 +468,11 @@ function renderModal() {
 
 function authModalBody() {
 	const login = state.authMode === 'login';
-	const skin = state.pendingSkin || (currentAccount() || {}).skin || null;
+	const account = currentAccount();
+	const skin = state.pendingSkin || (account || {}).skin || null;
 	const skinRow = '' +
 		'<div class="skin-row">' +
-			headMarkup(skin, 'head-48') +
+			headMarkup(skin, 'head-48', account ? account.username : null) +
 			'<div class="skin-meta"><b>Skin</b><span>Your head shows next to your name.</span></div>' +
 			'<button class="btn skin-btn" data-action="pick-skin">Add skin</button>' +
 		'</div>';
@@ -512,7 +521,7 @@ function accountModalBody() {
 	'<div class="modal-head"><h3>' + esc(account.username) +
 		(account.role === 'owner' ? ' <span class="owner-chip">Owner account</span>' : '') + '</h3>' +
 		'<p>' + esc(account.email) + '</p></div>' +
-	'<div class="skin-row">' + headMarkup(account.skin, 'head-48') +
+	'<div class="skin-row">' + headMarkup(account.skin, 'head-48', account.username) +
 		'<div class="skin-meta"><b>Skin</b><span>Shown in the launcher and to friends.</span></div>' +
 		'<button class="btn skin-btn" data-action="pick-skin">Add skin</button></div>' +
 	'<button class="btn" data-action="signout" style="margin-top:4px">Sign out</button>';
@@ -605,7 +614,7 @@ function newsSection() {
 				'<span class="news-dot"></span>' +
 				'<span class="news-arrow"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M8 16 16 8M9 8h7v7"/></svg></span>' +
 				(isOwner ? '<button class="news-remove" type="button" data-action="delete-news:' + esc(item.id) + '" aria-label="Delete post" title="Delete post"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg></button>' : '') +
-						'</div>' +
+			'</div>' +
 			'<div class="news-body">' +
 				'<h4>' + esc(item.title) + '</h4>' +
 				'<p>' + esc(item.description) + '</p>' +
@@ -633,7 +642,7 @@ function friendsPanel() {
 	const online = friends.filter((f) => f.state === 'online').length;
 	const rows = friends.length
 		? friends.map((f) => '' +
-			'<div class="friend-row">' + headMarkup(f.skin, 'head-26') +
+			'<div class="friend-row">' + headMarkup(f.skin, 'head-26', f.name) +
 				'<span class="friend-name">' + esc(f.name) + '</span>' +
 				'<span class="friend-state ' + (f.state === 'online' ? 'online' : '') + '">' +
 				(f.state === 'online' ? 'Online' : 'Offline') + '</span>' +
@@ -766,7 +775,7 @@ function serverCard(server) {
 	'<article class="server">' +
 		'<div class="server-media" data-action="server:' + esc(server.id) + '">' +
 			serverMedia(server) + serverIcon(server) +
-			'			<span class="server-players' + (server.custom ? ' official' : '') + '">' +
+			'\t\t\t<span class="server-players' + (server.custom ? ' official' : '') + '">' +
 				(server.custom ? 'Official server' : compact(server.players || 0) + ' online') + '</span>' +
 			(server.badge ? '<span class="server-rank">' + esc(server.badge) + '</span>' : '') +
 		'</div>' +
@@ -923,7 +932,7 @@ function friendsView() {
 	const sent = account.sent || [];
 	const rows = (list, emptyText, actions) => list.length
 		? list.map((f) => '' +
-			'<div class="friend-card">' + headMarkup(f.skin, 'head-34') +
+			'<div class="friend-card">' + headMarkup(f.skin, 'head-34', f.name) +
 				'<div><div class="friend-name">' + esc(f.name) + '</div>' +
 					'<div class="friend-state ' + (f.state === 'online' ? 'online' : '') + '">' +
 					(f.state === 'online' ? 'Online' : 'Offline') + '</div></div>' +

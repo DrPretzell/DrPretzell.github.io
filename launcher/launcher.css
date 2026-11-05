@@ -169,6 +169,7 @@ button { cursor: pointer; }
 .head-30 { width: 30px; height: 30px; border-radius: 7px; }
 .head-34 { width: 34px; height: 34px; border-radius: 8px; }
 .head-48 { width: 48px; height: 48px; border-radius: 10px; }
+.head-img { object-fit: cover; object-position: center; display: inline-block; image-rendering: pixelated; }
 .owner-chip {
 	margin-left: 2px;
 	padding: 2px 7px;

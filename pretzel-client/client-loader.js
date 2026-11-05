@@ -65,6 +65,47 @@
     });
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function hydrateAccount() {
+    var account = null;
+    try {
+      var accounts = JSON.parse(localStorage.getItem('pretzel.accounts.v1') || '[]');
+      var session = JSON.parse(localStorage.getItem('pretzel.session.v1') || 'null');
+      if (session && session.username) {
+        account = accounts.find(function (item) {
+          return String(item.username || '').toLowerCase() === String(session.username).toLowerCase();
+        }) || null;
+      }
+    } catch (e) { /* private mode or malformed storage */ }
+    if (!account) return;
+
+    var skin = account.skin || '';
+    window.__PRETZEL_ACCOUNT = { name: account.username, skinBase64: '' };
+    if (!skin) {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, 3500) : null;
+      try {
+        var res = await fetch('https://mc-heads.net/skin/' + encodeURIComponent(account.username), {
+          cache: 'force-cache',
+          signal: controller ? controller.signal : undefined
+        });
+        if (res.ok) skin = await blobToDataUrl(await res.blob());
+      } catch (e) { /* keep the generated/default skin if the provider is unavailable */ }
+      if (timer) clearTimeout(timer);
+    }
+    if (skin && skin.indexOf(',') >= 0) {
+      window.__PRETZEL_ACCOUNT.skinBase64 = skin.slice(skin.indexOf(',') + 1);
+    }
+  }
+
   async function run() {
     retryEl.style.display = 'none';
     setStatus('', 'Loading modded client\u2026');
@@ -79,6 +120,8 @@
     var assetRes = await fetch(ASSETS_URL, { cache: 'no-store' });
     if (!assetRes.ok) throw new Error('asset pack failed (' + assetRes.status + ')');
     window.__EAGLER_ZIP = new Int8Array(await assetRes.arrayBuffer());
+
+    await hydrateAccount();
 
     setBar(94, 'Starting modded client', 'The modded client is ready. Starting\u2026');
     var blob = new Blob(parts, { type: 'text/javascript' });

@@ -1312583,4 +1312583,4 @@ $rt_java.nmweap_PigVariant__clinit_ = () => {
             break main;
         }
         var$1 = $tmp;
-        nmweap_PigVariant_DIRECT_
+        nmweap_PigVariant_DIRECT_C

@@ -1,4 +1,4 @@
- $rt_java.nmac_PlayerPredicate$AdvancementDonePredicate__clinit_();
+rt_java.nmac_PlayerPredicate$AdvancementDonePredicate__clinit_();
         if ($rt_suspending()) {
             break main;
         }
@@ -1279770,4 +1279770,4 @@ nmwll_DynamicGraphMinFixedPoint_checkEdge = ($this, $p_75570_, $p_75571_, $p_755
     }}
     $rt_nativeThread().push($this, $p_75570_, $p_75571_, $p_75572_, $p_75573_, $p_75574_, $p_75575_, $k, $flag, $i, $j, var$11, $ptr);
 },
-nmwll_DynamicGraphMinFixe
+nmwll_DynamicGraphMinFixedPo

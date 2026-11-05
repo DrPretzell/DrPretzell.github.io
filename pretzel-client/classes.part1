@@ -1,4 +1,4 @@
-CODEC = var$1;
+ODEC = var$1;
         var$1 = new $rt_java.nmweap_PigVariant$_clinit_$lambda$_10_1;
         $ptr = 2;
     case 2:
@@ -1293797,4 +1293797,4 @@ nmac_PlayerPredicate$AdvancementDonePredicate_$callClinit = () => {
         nmac_PlayerPredicate$AdvancementDonePredicate_$_teavm_clinitCalled_$ = true;
         $ptr = 1;
     case 1:
-       
+        $

@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  var BUILD = '20261105c';
+  var BUILD = '20261105d';
   var PARTS = ['/pretzel-client/classes.part0?v=' + BUILD, '/pretzel-client/classes.part1?v=' + BUILD, '/pretzel-client/classes.part2?v=' + BUILD, '/pretzel-client/classes.part3?v=' + BUILD];
   var ASSETS_URL = '/pretzel-client/assets.zip?v=' + BUILD;
   var booted = false;

@@ -1,8 +1,9 @@
 'use strict';
 
 (function () {
-  var PARTS = ['/pretzel-client/classes.part0', '/pretzel-client/classes.part1', '/pretzel-client/classes.part2', '/pretzel-client/classes.part3'];
-  var ASSETS_URL = '/pretzel-client/assets.zip';
+  var BUILD = '20261105b';
+  var PARTS = ['/pretzel-client/classes.part0?v=' + BUILD, '/pretzel-client/classes.part1?v=' + BUILD, '/pretzel-client/classes.part2?v=' + BUILD, '/pretzel-client/classes.part3?v=' + BUILD];
+  var ASSETS_URL = '/pretzel-client/assets.zip?v=' + BUILD;
   var booted = false;
   var statusEl = document.getElementById('status');
   var statusText = document.getElementById('statusText');

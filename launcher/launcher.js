@@ -168,6 +168,7 @@ function updateAccount(mutator) {
 }
 
 function signOut() {
+	if (window.PretzelAccountApi) window.PretzelAccountApi.signOut();
 	localStorage.removeItem(LS.session);
 	state.modal = null;
 	toast('Signed out');
@@ -240,7 +241,8 @@ function seedNews() {
 
 async function loadStatus() {
 	try {
-		const res = await fetch('/api/status', { cache: 'no-store' });
+		const base = (window.PretzelAccountApi && window.PretzelAccountApi.base()) || '';
+		const res = await fetch(base + '/api/status', { cache: 'no-store' });
 		state.status = res.ok ? await res.json() : null;
 	} catch (e) {
 		state.status = null;
@@ -325,7 +327,52 @@ async function uninstallMod(id) {
 
 // ------------------------------------------------------------------ auth
 
+// Creates or updates the local record for an account that lives on the API, so
+// the rest of the launcher (friends list, heads, session) keeps working.
+function adoptRemoteAccount(payload) {
+	const user = payload.user || {};
+	const name = String(user.username || '').trim();
+	if (!name) throw new Error('The server did not return an account.');
+	const list = accounts();
+	let account = list.find((a) => a.username.toLowerCase() === name.toLowerCase());
+	if (!account) {
+		account = { username: name, email: '', role: 'user', passwordHash: '', skin: null, friends: [], requests: [], sent: [] };
+		list.push(account);
+	}
+	account.remote = true;
+	if (user.email) account.email = user.email;
+	if (user.skin) account.skin = user.skin;
+	account.friends = (payload.friends || []).map((f) => ({
+		name: f.username, state: f.online ? 'online' : 'offline', skin: f.skin || null,
+	}));
+	account.requests = (payload.requests || []).map((name) => ({ name, state: 'offline', skin: null }));
+	saveAccounts(list);
+	write(LS.session, { username: account.username });
+	return account;
+}
+
+async function syncRemoteFriends() {
+	const api = window.PretzelAccountApi;
+	if (!api || !api.token()) return;
+	try {
+		const data = await api.friends();
+		updateAccount((account) => {
+			account.friends = (data.friends || []).map((f) => ({
+				name: f.username, state: f.online ? 'online' : 'offline', skin: f.skin || null,
+			}));
+			account.requests = (data.requests || []).map((name) => ({ name, state: 'offline', skin: null }));
+		});
+	} catch (e) {
+		if (e.status === 401) api.signOut();
+	}
+}
+
 async function signIn(login, password) {
+	const api = window.PretzelAccountApi;
+	if (api && (await api.enabled())) {
+		adoptRemoteAccount(await api.login(login.trim(), password));
+		return;
+	}
 	const needle = login.trim().toLowerCase();
 	const account = accounts().find((a) => a.username.toLowerCase() === needle || a.email.toLowerCase() === needle);
 	if (!account) throw new Error('No account with that username or Gmail.');
@@ -339,6 +386,17 @@ async function signIn(login, password) {
 }
 
 async function signUp(username, email, password, confirm) {
+	const api = window.PretzelAccountApi;
+	if (api && (await api.enabled())) {
+		const result = await api.signup(username.trim(), email.trim(), password);
+		if (state.pendingSkin) {
+			result.user = Object.assign({}, result.user, { skin: state.pendingSkin });
+		}
+		adoptRemoteAccount(result);
+		localStorage.removeItem(LS.pendingSkin);
+		state.pendingSkin = null;
+		return;
+	}
 	const name = username.trim();
 	if (name.length < 3 || name.length > 16) throw new Error('Username must be 3 to 16 characters.');
 	if (!/^[A-Za-z0-9_]+$/.test(name)) throw new Error('Username can only use letters, numbers and _.');
@@ -680,8 +738,10 @@ function serverStrip() {
 }
 
 function onlineTotal() {
-	if (!state.servers || !state.servers.length) return null;
-	return state.servers.reduce((sum, s) => sum + (Number(s.players) || 0), 0);
+	// Only report a real number: the accounts service knows how many players are
+	// actually online. The static server catalogue is not a live population count.
+	const live = state.status && Number(state.status.online);
+	return Number.isFinite(live) ? live : null;
 }
 
 function versionCard() {
@@ -1190,6 +1250,19 @@ document.addEventListener('click', async (event) => {
 			toast('Type a username first', 'bad');
 			return;
 		}
+		const api = window.PretzelAccountApi;
+		if (api && (await api.enabled())) {
+			try {
+				const result = await api.requestFriend(name);
+				await syncRemoteFriends();
+				toast(result.status === 'friends' ? 'You are now friends with ' + name : 'Request sent to ' + name, 'good');
+				state.friendTab = result.status === 'friends' ? 'friends' : 'sent';
+			} catch (e) {
+				toast(e.message, 'bad');
+			}
+			render();
+			return;
+		}
 		updateAccount((account) => {
 			account.friends = account.friends || [];
 			account.sent = account.sent || [];
@@ -1205,6 +1278,18 @@ document.addEventListener('click', async (event) => {
 	}
 	if (action.startsWith('remove-friend:')) {
 		const name = action.slice(14);
+		const api = window.PretzelAccountApi;
+		if (api && (await api.enabled())) {
+			try {
+				await api.removeFriend(name);
+				await syncRemoteFriends();
+				toast('Removed ' + name);
+			} catch (e) {
+				toast(e.message, 'bad');
+			}
+			render();
+			return;
+		}
 		updateAccount((account) => {
 			account.friends = (account.friends || []).filter((f) => f.name !== name);
 		});
@@ -1214,6 +1299,18 @@ document.addEventListener('click', async (event) => {
 	}
 	if (action.startsWith('accept:')) {
 		const name = action.slice(7);
+		const api = window.PretzelAccountApi;
+		if (api && (await api.enabled())) {
+			try {
+				await api.acceptFriend(name);
+				await syncRemoteFriends();
+				toast('You are now friends with ' + name, 'good');
+			} catch (e) {
+				toast(e.message, 'bad');
+			}
+			render();
+			return;
+		}
 		updateAccount((account) => {
 			account.requests = (account.requests || []).filter((f) => f.name !== name);
 			account.friends = account.friends || [];
@@ -1385,6 +1482,7 @@ document.addEventListener('input', (event) => {
 	state.pendingSkin = read(LS.pendingSkin, null);
 	render();
 	loadStatus().then(renderTopbar);
+	syncRemoteFriends().then(render);
 	loadServers(false).then(() => { if (state.view === 'launchpad') renderView(); });
 	setInterval(() => loadStatus().then(renderTopbar), 15000);
 })();

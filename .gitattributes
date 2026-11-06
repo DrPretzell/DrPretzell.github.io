@@ -1,0 +1,3 @@
+# The client is served as fixed-size chunks; keep them byte-exact.
+pretzel-client/classes.part* -text
+pretzel-client/assets.zip -text

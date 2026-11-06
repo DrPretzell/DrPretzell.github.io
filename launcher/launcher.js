@@ -500,17 +500,17 @@ function authModalBody() {
 			'<div class="field"><label for="suPass">Password</label>' +
 				'<input class="input" id="suPass" name="suPass" type="password" autocomplete="new-password" placeholder="Password"></div>' +
 			'<div class="field"><label for="suPass2">Re enter password</label>' +
-				'<input class="input" id="suPass2" name="suPass2" type="password" autocomplete="new-password" placeholder="Re enter password"></div>' +
+				'<input class="input" id="suPass2" name="suPass2" type="password" autocomplete="new-password" placeholder="Re-enter password"></div>' +
 			(state.authError ? '<p class="form-error">' + esc(state.authError) + '</p>' : '') +
 			'<button class="btn ghost-gold" type="submit">Create Account</button>' +
 			'<div class="row-between" style="margin-top:10px">' +
-				'<span class="raw-link" style="cursor:default">Have a Account?</span>' +
-				'<button class="raw-link" type="button" data-action="swap-login">Login In</button>' +
+				'<span class="raw-link" style="cursor:default">Have an account?</span>' +
+				'<button class="raw-link" type="button" data-action="swap-login">Log in</button>' +
 			'</div>' +
 		'</form>';
 
 	return '<div class="modal-head"><h3>' + (login ? 'Login' : 'Create account') + '</h3>' +
-		'<p>' + (login ? 'Sign in to Pretzel Client.' : 'One account, no email verification.') + '</p></div>' +
+		'<p>' + (login ? 'Sign in to Pretzel Client.' : 'Create an account and pick a skin.') + '</p></div>' +
 		skinRow + (login ? loginForm : signupForm);
 }
 

@@ -538,7 +538,7 @@
 			if (state.top) {
 				// One request for the whole ranked list; facets keep it to Fabric 1.21.11.
 				const facets = [['versions:' + state.version], ['categories:fabric']];
-				let url = API + '/search?limit=' + TOP_LIMIT + '&offset=0&index=downloads&facets=' +
+				let url = API + '/search?limit=' + (TOP_LIMIT + 1) + '&offset=0&index=downloads&facets=' +
 					encodeURIComponent(JSON.stringify(facets));
 				if (state.query) url += '&query=' + encodeURIComponent(state.query);
 				const res = await fetch(url, { cache: 'no-store' });
@@ -550,6 +550,7 @@
 					icon_url: hit.icon_url, downloads: hit.downloads, date_modified: hit.date_modified,
 					categories: hit.categories, loaders: [state.loader],
 				}, { author: hit.author, verified: false })).filter(Boolean)
+					.filter((mod) => mod.slug !== 'fabric-api' && mod.id !== 'P7dR8mSH')
 					.sort((a, b) => b.downloads - a.downloads)
 					.slice(0, TOP_LIMIT);
 				state.total = state.mods.length;

@@ -388,7 +388,7 @@
 	}
 
 	function rowHTML(mod, index) {
-		const rank = state.top ? '<span class="mx-rank">#' + (index + 1) + '</span>' : '';
+		const rank = state.top ? '<span class="mx-rank">#' + (index + 1) + '</span> ' : '';
 		const actions = state.top
 			? '<span class="mx-status" title="This is a Fabric jar. Pretzel compiles Java ahead of time, so jars cannot be loaded at runtime.">Jar · can’t run here</span>' +
 				'<a class="mx-action view" href="https://modrinth.com/mod/' + esc(mod.slug) + '" target="_blank" rel="noopener noreferrer">Modrinth</a>'

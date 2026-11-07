@@ -11,6 +11,16 @@
 	const API = 'https://api.modrinth.com/v2';
 	const INSTALLED_KEY = 'pretzel.installed.v1';
 	const SALE_KEY = 'pretzel.mods.sale.v1';
+	const TOP_LIMIT = 50;
+
+	// Mods actually compiled into the client. Everything on Modrinth is a jar,
+	// and this client is ahead-of-time compiled, so only these can run.
+	const COMPILED = [
+		{
+			id: 'pretzel-essentials', title: 'Pretzel Essentials', author: 'DrPretzell', version: '1.0.0',
+			description: 'FPS and mod card plus on-screen keystrokes. H toggles the card, K toggles keystrokes.',
+		},
+	];
 
 	const CATALOG = [
 		{
@@ -108,6 +118,7 @@
 		loading: false,
 		error: '',
 		offline: false,
+		top: true,
 		total: 77948,
 		page: 1,
 		totalPages: 1,
@@ -330,7 +341,9 @@
 		const count = state.source === 'curseforge' ? '10,000+' : (Number(state.total) || 77948).toLocaleString();
 		const placeholder = state.source === 'curseforge'
 			? 'CurseForge browsing needs an API key'
-			: 'Search ' + count + ' mods on Modrinth...';
+			: state.top
+				? 'Filter the top ' + TOP_LIMIT + '...'
+				: 'Search ' + count + ' mods on Modrinth...';
 		return '<div class="mx-filterbar">' +
 			'<div class="mx-page-title">' + ICON.package + '<span>Mods</span>' +
 				'<span class="mx-caret">' + ICON.chevron + '</span></div>' +
@@ -345,6 +358,8 @@
 					'<option value="name"' + (state.sort === 'name' ? ' selected' : '') + '>Name</option>' +
 				'</select>' + ICON.chevron +
 			'</div>' +
+			'<button class="mx-topbtn' + (state.top ? ' on' : '') + '" data-mx="top"' +
+				' title="Modrinth top 50 for ' + esc(state.version) + '">Top 50</button>' +
 			'<div class="mx-source">' + sourceButton('curseforge', 'CurseForge', 'cf') + sourceButton('modrinth', 'Modrinth', 'mr') + '</div>' +
 		'</div>';
 	}
@@ -361,7 +376,7 @@
 		return '<div class="mx-skeleton">' + rows + '</div>';
 	}
 
-	function rowHTML(mod) {
+	function installActions(mod) {
 		const installedMod = isInstalled(mod.id);
 		const busy = state.installing === mod.id;
 		const installButton = busy
@@ -369,10 +384,19 @@
 			: installedMod
 				? '<button class="mx-action installed" data-mx="open:' + esc(mod.id) + '">' + ICON.check + 'Installed <span class="mx-caret">▾</span></button>'
 				: '<button class="mx-action install" data-mx="open:' + esc(mod.id) + '">' + ICON.download + 'Install</button>';
+		return '<button class="mx-action view" data-mx="view:' + esc(mod.id) + '">' + ICON.eye + 'View</button>' + installButton;
+	}
+
+	function rowHTML(mod, index) {
+		const rank = state.top ? '<span class="mx-rank">#' + (index + 1) + '</span>' : '';
+		const actions = state.top
+			? '<span class="mx-status" title="This is a Fabric jar. Pretzel compiles Java ahead of time, so jars cannot be loaded at runtime.">Jar · can’t run here</span>' +
+				'<a class="mx-action view" href="https://modrinth.com/mod/' + esc(mod.slug) + '" target="_blank" rel="noopener noreferrer">Modrinth</a>'
+			: installActions(mod);
 		return '<article class="mx-row">' +
 			modIcon(mod) +
 			'<div class="mx-body">' +
-				'<div class="mx-title-row"><h3>' + esc(mod.title) +
+				'<div class="mx-title-row"><h3>' + rank + esc(mod.title) +
 					(mod.verified ? '<span class="mx-verified" title="Verified project">' + ICON.verified + '</span>' : '') +
 				'</h3><div class="mx-stats">' + statDownload(mod.downloads) +
 					'<span class="mx-sep">·</span>' + statTime(mod.updated) + '</div></div>' +
@@ -380,10 +404,7 @@
 				'<div class="mx-meta"><span class="mx-author"><span class="mx-author-av">' + esc(initial(mod.author)) + '</span>' +
 					esc(mod.author) + '</span><span class="mx-meta-dot">•</span>' + tagsHTML(mod) + '</div>' +
 			'</div>' +
-			'<div class="mx-actions">' +
-				'<button class="mx-action view" data-mx="view:' + esc(mod.id) + '">' + ICON.eye + 'View</button>' +
-				installButton +
-			'</div>' +
+			'<div class="mx-actions">' + actions + '</div>' +
 		'</article>';
 	}
 
@@ -406,7 +427,7 @@
 	}
 
 	function pagerHTML() {
-		if (state.loading || state.source === 'curseforge' || state.error || !state.total) return '';
+		if (state.loading || state.source === 'curseforge' || state.error || !state.total || state.top) return '';
 		const pages = Math.max(1, state.totalPages || Math.ceil(state.total / 10));
 		const start = (state.page - 1) * 10 + 1;
 		const end = Math.min(state.page * 10, state.total);
@@ -423,6 +444,20 @@
 		'</div>';
 	}
 
+	function topNoteHTML() {
+		return '<div class="mx-topnote"><b>Modrinth’s top ' + TOP_LIMIT + ' for ' + esc(state.version) + '</b>' +
+			'<span>Ranked by downloads. Pretzel compiles its Java client ahead of time, so these Fabric jars cannot be loaded at runtime — each row is a reference link, not an install. Mods compiled into this build are listed under “Built into this build” and in the in-game Mod Hub (Right Shift).</span></div>';
+	}
+
+	function includedHTML() {
+		return '<div class="mx-included"><div class="mx-included-head"><b>Built into this build</b>' +
+			'<span>' + COMPILED.length + ' compiled mod' + (COMPILED.length === 1 ? '' : 's') + '</span></div>' +
+			COMPILED.map((mod) => '<div class="mx-included-row">' + modIcon(mod) +
+				'<div><b>' + esc(mod.title) + '</b><span class="mx-inc-ver">v' + esc(mod.version) + '</span>' +
+					'<p>' + esc(mod.description) + '</p></div>' +
+				'<span class="mx-inc-chip">Built in</span></div>').join('') + '</div>';
+	}
+
 	function resultsHTML() {
 		if (state.source === 'curseforge') return curseforgeHTML();
 		if (state.loading) return skeletonHTML();
@@ -431,8 +466,8 @@
 				'<div style="margin-top:12px"><button class="mx-primary" data-mx="retry">Retry</button></div></div>';
 		}
 		const list = state.mods || [];
-		if (!list.length) return '<div class="mx-empty">No mods match those filters.</div>';
-		return list.map(rowHTML).join('') + pagerHTML() +
+		if (!list.length) return (state.top ? topNoteHTML() + includedHTML() : '') + '<div class="mx-empty">No mods match those filters.</div>';
+		return (state.top ? topNoteHTML() + includedHTML() : '') + list.map(rowHTML).join('') + pagerHTML() +
 			(state.offline ? '<div class="mx-offline">Showing bundled mod info because Modrinth could not be reached.</div>' : '');
 	}
 
@@ -500,20 +535,26 @@
 		state.offline = false;
 		render();
 		try {
-			// Always use the live popularity index so paging can reach every project.
-			const curated = false;
-			if (curated) {
-				const ids = encodeURIComponent(JSON.stringify(CATALOG.map((mod) => mod.slug)));
-				const res = await fetch(API + '/projects?ids=' + ids, { cache: 'no-store' });
+			if (state.top) {
+				// One request for the whole ranked list; facets keep it to Fabric 1.21.11.
+				const facets = [['versions:' + state.version], ['categories:fabric']];
+				let url = API + '/search?limit=' + TOP_LIMIT + '&offset=0&index=downloads&facets=' +
+					encodeURIComponent(JSON.stringify(facets));
+				if (state.query) url += '&query=' + encodeURIComponent(state.query);
+				const res = await fetch(url, { cache: 'no-store' });
 				if (!res.ok) throw new Error('HTTP ' + res.status);
-				const projects = await res.json();
-				const bySlug = {};
-				for (const project of (Array.isArray(projects) ? projects : [])) bySlug[project.slug] = project;
+				const data = await res.json();
 				if (seq !== requestSeq) return;
-				state.mods = sortMods(CATALOG.map((mod) =>
-					hydrate(bySlug[mod.slug], { author: mod.author, tags: mod.tags, verified: true })
-				).filter(Boolean));
-				state.total = 77948;
+				state.mods = (data.hits || []).map((hit) => hydrate({
+					id: hit.project_id, slug: hit.slug, title: hit.title, description: hit.description,
+					icon_url: hit.icon_url, downloads: hit.downloads, date_modified: hit.date_modified,
+					categories: hit.categories, loaders: [state.loader],
+				}, { author: hit.author, verified: false })).filter(Boolean)
+					.sort((a, b) => b.downloads - a.downloads)
+					.slice(0, TOP_LIMIT);
+				state.total = state.mods.length;
+				state.totalPages = 1;
+				state.page = 1;
 			} else {
 				const facets = [];
 				if (state.version) facets.push(['versions:' + state.version]);
@@ -875,6 +916,15 @@
 			state.sale = false;
 			hideSale();
 			render();
+			return;
+		}
+		if (action === 'top') {
+			state.top = !state.top;
+			state.page = 1;
+			state.mods = null;
+			state.loading = true;
+			render();
+			load();
 			return;
 		}
 		if (action.startsWith('source:')) {

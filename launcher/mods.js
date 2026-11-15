@@ -20,14 +20,248 @@
 			id: 'pretzel-essentials', title: 'Pretzel Essentials', author: 'DrPretzell', version: '1.0.0',
 			description: 'FPS and mod card plus on-screen keystrokes. H toggles the card, K toggles keystrokes.',
 		},
-	];
-
-	const CATALOG = [
 		{
-			slug: 'fabric-api', title: 'Fabric API', author: 'modmuss50',
-			description: 'Lightweight and modular API providing common hooks and intercompatibility measures utilized by mods using the Fabric toolchain.',
-			downloads: 295571504, updated: '2026-10-27T17:15:53.249505Z', tags: ['Fabric', 'Library'],
+			id: 'keystrokes', title: 'Keystrokes', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
 		},
+		{
+			id: 'cps-counter', title: 'CPS Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'reach-display', title: 'Reach Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'hitbox-display', title: 'Hitbox Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'combo-counter', title: 'Combo Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'kill-counter', title: 'Kill Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'death-counter', title: 'Death Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'kill-effect', title: 'Kill Effect', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'crosshair-customizer', title: 'Crosshair Customizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'armor-status', title: 'Armor Status', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'potion-status', title: 'Potion Status', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'block-overlay', title: 'Block Overlay', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'hit-color', title: 'Hit Color', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'damage-indicator', title: 'Damage Indicator', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'arrow-counter', title: 'Arrow Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'fps-counter', title: 'FPS Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'ping-display', title: 'Ping Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'coordinates-display', title: 'Coordinates Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'direction-hud', title: 'Direction HUD', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'clock', title: 'Clock', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'stopwatch', title: 'Stopwatch', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'boss-bar', title: 'Boss Bar', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'scoreboard-customizer', title: 'Scoreboard Customizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'potion-effects-hud', title: 'Potion Effects HUD', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'armor-durability-hud', title: 'Armor Durability HUD', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'item-counter', title: 'Item Counter', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'memory-usage', title: 'Memory Usage Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'biome-display', title: 'Biome Display', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'speedometer', title: 'Speedometer', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'session-info', title: 'Session Information', author: 'DrPretzell', version: '1.0.0',
+			description: 'HUD element, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'motion-blur', title: 'Motion Blur', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'zoom', title: 'Zoom', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'fullbright', title: 'Fullbright', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'custom-skins', title: 'Custom Skins', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'custom-capes', title: 'Custom Capes', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'custom-wings', title: 'Custom Wings', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'name-tag-customizer', title: 'Name Tag Customizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'weather-changer', title: 'Weather Changer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'time-changer', title: 'Time Changer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'particle-customizer', title: 'Particle Customizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'damage-particles', title: 'Damage Particles', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'custom-crosshair-color', title: 'Custom Crosshair Color', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'block-animation', title: 'Block Animation', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'item-physics', title: 'Item Physics', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'freelook', title: 'Freelook', author: 'DrPretzell', version: '1.0.0',
+			description: 'Visual tweak, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'auto-gg', title: 'Auto GG', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'chat-translator', title: 'Chat Translator', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'chat-timestamps', title: 'Chat Timestamps', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'auto-text', title: 'Auto Text', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'waypoints', title: 'Waypoints', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'world-map', title: 'World Map', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'screenshot-manager', title: 'Screenshot Manager', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'replay-system', title: 'Replay System', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'friend-system', title: 'Friend System', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'server-switcher', title: 'Server Switcher', author: 'DrPretzell', version: '1.0.0',
+			description: 'Utility feature, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'fps-optimizer', title: 'FPS Optimizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Performance option, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'entity-culling', title: 'Entity Culling', author: 'DrPretzell', version: '1.0.0',
+			description: 'Performance option, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'particle-reducer', title: 'Particle Reducer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Performance option, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'chunk-optimizer', title: 'Chunk Optimizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Performance option, toggled from the in-game mod menu.',
+		},
+		{
+			id: 'animation-optimizer', title: 'Animation Optimizer', author: 'DrPretzell', version: '1.0.0',
+			description: 'Performance option, toggled from the in-game mod menu.',
+		},
+	];
+	const CATALOG = [
 		{
 			slug: 'sodium', title: 'Sodium', author: 'CaffeineMC',
 			description: 'A high-performance rendering engine replacement for Minecraft, which greatly improves frame rates and reduces micro-stutter.',
@@ -699,15 +933,11 @@
 
 	function depsHTML() {
 		const mod = state.modal.mod;
-		const fabric = installed().find((item) => item.slug === 'fabric-api' || item.id === 'P7dR8mSH');
-		const fabricIcon = modIcon({ title: 'Fabric API', icon: (state.mods || []).find((item) => item.slug === 'fabric-api')?.icon || '' });
 		return '<div class="mx-modal-head">' + modIcon(mod) + '<h3>Install ' + esc(mod.title) + '</h3></div>' +
 			'<div class="mx-warning">' + ICON.warning +
 				'<div>Pretzel Client does not review mods from Modrinth or CurseForge.<br>Only install content from sources you trust.</div></div>' +
-			'<div class="mx-deps-head">Required Dependencies (1)<span>▴</span></div>' +
-			'<div class="mx-dep-row">' + fabricIcon + '<span>Fabric API</span>' +
-				'<span class="mx-dep-state' + (fabric ? ' ok' : '') + '">' + (fabric ? '✓ Installed' : 'Required') + '</span></div>' +
-			'<p class="mx-note">Could not check this against your mods.</p>' +
+			'<div class="mx-deps-head">Dependencies</div>' +
+			'<p class="mx-note">Fabric 1.21.11 is built into Pretzel Client, so no Fabric API jar is needed.</p>' +
 			(state.modal.error ? '<div class="mx-modal-error">' + esc(state.modal.error) + '</div>' : '') +
 			'<div class="mx-modal-foot"><span class="mx-fabric-badge"><span class="mx-fabric-check">✓</span>Fabric ' + esc(state.version) + '</span>' +
 				'<div class="mx-modal-actions"><button class="mx-back" data-mx="close-modal">Back</button>' +

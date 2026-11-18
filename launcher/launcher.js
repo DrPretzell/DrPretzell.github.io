@@ -39,14 +39,6 @@ const SEED_NEWS = [
 		author: 'DrPretzell',
 		createdAt: Date.UTC(2026, 9, 3, 12),
 	},
-	{
-		id: 'news-essentials',
-		banner: '/pretzel-logo.png',
-		title: 'Pretzel Essentials is built in',
-		description: 'The modded build now includes the HUD, keystroke overlay and quick toggles. No extra setup required.',
-		author: 'DrPretzell',
-		createdAt: Date.UTC(2026, 9, 12, 12),
-	},
 ];
 
 const SERVER_PAGE_SIZE = 10;
@@ -748,7 +740,7 @@ function versionCard() {
 	return '<section class="partner version-card" aria-label="Installed client version">' +
 		'<img class="partner-logo" src="/pretzel-logo.png" alt="">' +
 		'<div class="partner-text"><span class="name">' + CLIENT_VERSION + '</span>' +
-		'<span class="role">Installed version &middot; Pretzel Essentials built in</span></div>' +
+		'<span class="role">Installed version</span></div>' +
 		'<span class="version-badge">ACTIVE</span>' +
 	'</section>';
 }

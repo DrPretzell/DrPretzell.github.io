@@ -683,7 +683,7 @@
 			'<div class="mx-warning">' + ICON.warning +
 				'<div>Pretzel Client does not review mods from Modrinth or CurseForge.<br>Only install content from sources you trust.</div></div>' +
 			'<div class="mx-deps-head">Dependencies</div>' +
-			'<p class="mx-note">Fabric 1.21.11 is built into Pretzel Client, so no Fabric API jar is needed.</p>' +
+			'<p class="mx-note">Fabric 1.21.11 is built into Pretzel Client, so no Fabric API jar is needed.<br>Downloaded jars run in Java Minecraft. The browser client cannot load jars, so it ships its own ports of these mods.</p>' +
 			(state.modal.error ? '<div class="mx-modal-error">' + esc(state.modal.error) + '</div>' : '') +
 			'<div class="mx-modal-foot"><span class="mx-fabric-badge"><span class="mx-fabric-check">✓</span>Fabric ' + esc(state.version) + '</span>' +
 				'<div class="mx-modal-actions"><button class="mx-back" data-mx="close-modal">Back</button>' +

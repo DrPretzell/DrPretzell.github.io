@@ -5,12 +5,12 @@
 // Sections: launchpad, servers, mods, friends, store. Accounts and news live
 // in localStorage; passwords are hashed with SHA-256. The sign-in form is a
 // modal opened from the account chip, never an always-visible panel.
-// Servers come from /api/launcher/servers (proxied list), mods from Modrinth.
+// Servers come from /api/launcher/servers (proxied list); mods are compiled in.
 
 const CLIENT_URL = '/pretzel-client/client.html';
 const CLIENT_VERSION = '1.21.11 · Modded';
 
-const MODRINTH = 'https://api.modrinth.com/v2';
+// Mods are compiled into the client; there is no remote catalogue to query.
 const STEVE = '/launcher/assets/steve-head.png';
 const PATHOST = '/launcher/assets/pathost.png';
 const MC_HEADS = 'https://mc-heads.net';
@@ -75,7 +75,6 @@ const state = {
 	modsLoading: false,
 	installing: {},
 	modsQuery: '',
-	modSource: 'modrinth',
 	friendTab: 'friends',
 	pendingSkin: null,
 	newsDraft: null,
@@ -266,18 +265,14 @@ async function installMod(mod) {
 	if (state.installing[mod.id] || isInstalled(mod.id)) return;
 	state.installing[mod.id] = true;
 	try {
-		const versionUrl = MODRINTH + '/project/' + encodeURIComponent(mod.slug || mod.id) +
-			'/version?game_versions=' + encodeURIComponent('["1.21.11"]') +
-			'&loaders=' + encodeURIComponent('["fabric"]');
-		const res = await fetch(versionUrl);
-		const versions = res.ok ? await res.json() : [];
-		const version = Array.isArray(versions) ? versions[0] : null;
-		const file = version && version.files && version.files[0] ? version.files[0] : null;
+		// Nothing is fetched per mod: every mod is compiled into the client.
+		const version = null;
+		const file = null;
 		const payload = {
 			id: mod.id,
 			title: mod.title,
 			slug: mod.slug,
-			source: 'modrinth',
+			source: 'builtin',
 			version: version ? version.version_number : '',
 			fileUrl: file ? file.url : '',
 			fileName: file ? file.filename : '',
@@ -1203,7 +1198,6 @@ document.addEventListener('click', async (event) => {
 	if (action.startsWith('modtab:')) {
 		state.modSource = action.slice(7);
 		renderView();
-		if (state.modSource === 'modrinth') loadMods(false);
 		return;
 	}
 	if (action.startsWith('install:')) {

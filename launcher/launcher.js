@@ -1213,7 +1213,7 @@ document.addEventListener('click', async (event) => {
 		const server = findServer(action.slice(5));
 		if (!server) return;
 		await copyText(server.address || '');
-		toast('Address copied - paste it in Multiplayer. Launching…', 'good');
+		toast('Copied ' + (server.address || '') + ' - or join it in game from Multiplayer \u2192 Discover', 'good');
 		setTimeout(() => { location.href = CLIENT_URL; }, 700);
 		return;
 	}

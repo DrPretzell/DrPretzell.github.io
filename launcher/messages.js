@@ -93,6 +93,14 @@
 		return read(PRIVACY, 'anyone') || 'anyone';
 	}
 
+	/** Settings owns the real privacy choice; fall back to the old key on its own. */
+	function privacyValue() {
+		try {
+			if (window.PretzelSettings) return window.PretzelSettings.values().messages || 'friends';
+		} catch (e) { /* ignore */ }
+		return privacy();
+	}
+
 	function head(skin, cls, name) {
 		var size = cls || 'head-26';
 		if (skin) {
@@ -357,7 +365,8 @@
 				(state.mode === 'chat' ? body() : '<div class="px-d-body">' + body() + '</div>') +
 				'<div class="px-d-foot">' +
 					(state.mode === 'messages'
-						? 'ANYONE CAN MESSAGE YOU <button data-act="privacy">' + (privacy() === 'anyone' ? 'CHANGE' : 'FRIENDS ONLY') + '</button>'
+						? (privacyValue() === 'anyone' ? 'ANYONE CAN MESSAGE YOU' : 'ONLY FRIENDS CAN MESSAGE YOU') +
+							'<button data-act="privacy">CHANGE</button>'
 						: 'FRIEND REQUESTS GO TO YOUR PRETZEL ACCOUNT') +
 				'</div>' +
 			'</aside>' +
@@ -545,8 +554,9 @@
 				return;
 			}
 			if (act === 'privacy') {
-				write(PRIVACY, privacy() === 'anyone' ? 'friends' : 'anyone');
-				render();
+				// the real control lives in the settings sheet, which owns privacy
+				if (window.PretzelSettings) window.PretzelSettings.open();
+				else { write(PRIVACY, privacy() === 'anyone' ? 'friends' : 'anyone'); render(); }
 				return;
 			}
 			if (act === 'login') {

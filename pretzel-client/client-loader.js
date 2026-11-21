@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  var BUILD = '20261119c';
+  var BUILD = '20261122a';
   var PARTS = ['/pretzel-client/classes.part0?v=' + BUILD, '/pretzel-client/classes.part1?v=' + BUILD, '/pretzel-client/classes.part2?v=' + BUILD, '/pretzel-client/classes.part3?v=' + BUILD, '/pretzel-client/classes.part4?v=' + BUILD];
   var ASSETS_URL = '/pretzel-client/assets.zip?v=' + BUILD;
   var booted = false;
@@ -26,6 +26,20 @@
   function setStatus(kind, text) {
     statusEl.className = kind;
     statusText.textContent = text;
+  }
+
+  // The launchpad opens this client with ?join=<address>&name=<server>. Hand the
+  // address to the client before it starts so the title screen really connects
+  // instead of the launcher only copying the address to the clipboard.
+  function readJoinRequest() {
+    try {
+      var params = new URLSearchParams(location.search);
+      var server = (params.get('join') || params.get('server') || '').trim();
+      if (!server) return null;
+      return { server: server, name: (params.get('name') || '').trim() };
+    } catch (e) {
+      return null;
+    }
   }
 
   function describeError(e) {
@@ -178,7 +192,14 @@
     await hydrateAccount();
 
     stage = 'parse';
-    setBar(94, 'Starting modded client', 'The modded client is ready. Starting\u2026');
+    var joinRequest = readJoinRequest();
+    if (joinRequest) {
+      window.__PRETZEL_JOIN = joinRequest.server;
+      setBar(94, 'Joining ' + (joinRequest.name || joinRequest.server),
+        'The client will connect to ' + joinRequest.server + ' as soon as it starts\u2026');
+    } else {
+      setBar(94, 'Starting modded client', 'The modded client is ready. Starting\u2026');
+    }
     var blob = new Blob(parts, { type: 'text/javascript' });
     var blobUrl = URL.createObjectURL(blob);
     try {

@@ -55,6 +55,7 @@ const NAV = [
 	{ id: 'servers', label: 'Servers', icon: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.2 2.2 3.2 5 3.2 8S14.2 17.8 12 20c-2.2-2.2-3.2-5-3.2-8S9.8 6.2 12 4Z"/>' },
 	{ id: 'mods', label: 'Mods', icon: '<path d="M12 3.4 19.4 7.7v8.6L12 20.6 4.6 16.3V7.7Z"/><path d="M4.6 7.7 12 12l7.4-4.3M12 12v8.6"/>' },
 	{ id: 'friends', label: 'Friends', icon: '<circle cx="9.2" cy="8.6" r="3.1"/><path d="M3.6 19.4c.5-3 2.8-4.7 5.6-4.7s5.1 1.7 5.6 4.7"/><path d="M16.4 6.4a3 3 0 0 1 0 5.6M18 15.2c1.6.6 2.6 2.1 2.9 4.2"/>' },
+	{ id: 'cosmetics', label: 'Cosmetics', icon: '<path d="M9 4.5 5.2 8.3l1.9 1.9 1-1v9.3h3.8v-9.3l1 1 1.9-1.9L11 4.5a1.4 1.4 0 0 0-2 0Z"/>' },
 	{ id: 'store', label: 'Store', icon: '<circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/><path d="M3.5 4.5h2.2l2.4 10.1h10.7l2-7.6H6.4"/>' },
 ];
 
@@ -418,14 +419,24 @@ function render() {
 	renderModal();
 }
 
+// Rail glyphs are pixel emoji so the shell matches the rest of the theme.
+const RAIL_PIXELS = {
+	launchpad: 'rocket',
+	servers: 'globe',
+	mods: 'cube',
+	friends: 'people',
+	cosmetics: 'shirt',
+	store: 'cart',
+};
+
 function renderRail() {
 	const installed = installedList().length;
 	let html = '<div class="rail-brand"><img src="/pretzel-logo.png" alt="Pretzel"></div>';
 	for (const item of NAV) {
 		const active = state.view === item.id ? ' active' : '';
+		const glyph = window.PretzelPixels ? window.PretzelPixels.svg(RAIL_PIXELS[item.id] || 'dot', 18) : '';
 		html += '<button class="rail-btn' + active + '" data-action="nav:' + item.id + '" title="' + item.label + '" aria-label="' + item.label + '">' +
-			'<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-			item.icon + '</svg>' +
+			glyph +
 			(item.id === 'mods' && installed ? '<span class="badge">' + installed + '</span>' : '') +
 			'</button>';
 	}
@@ -466,12 +477,16 @@ function renderView() {
 		servers: serversView,
 		mods: modsView,
 		friends: friendsView,
+		cosmetics: function () { return '<div id="pretzel-cosmetics-root"></div>'; },
 		store: storeView,
 	};
 	document.getElementById('view').innerHTML = (map[state.view] || launchpadView)();
 	if (state.view === 'servers') watchServerVideos();
 	if (state.view === 'mods' && window.PretzelMods) {
 		window.PretzelMods.mount(document.getElementById('pretzel-mods-root'));
+	}
+	if (state.view === 'cosmetics' && window.PretzelCosmetics) {
+		window.PretzelCosmetics.mount(document.getElementById('pretzel-cosmetics-root'));
 	}
 }
 
@@ -1211,10 +1226,15 @@ document.addEventListener('click', async (event) => {
 	}
 	if (action.startsWith('join:')) {
 		const server = findServer(action.slice(5));
-		if (!server) return;
-		await copyText(server.address || '');
-		toast('Copied ' + (server.address || '') + ' - or join it in game from Multiplayer \u2192 Discover', 'good');
-		setTimeout(() => { location.href = CLIENT_URL; }, 700);
+		if (!server || !server.address) return;
+		// Hand the address to the client instead of just copying it: the client
+		// reads ?join= at boot and connects on the title screen.
+		toast('Joining ' + (server.name || server.address) + '\u2026', 'good');
+		setTimeout(() => {
+			location.href = CLIENT_URL +
+				'?join=' + encodeURIComponent(server.address) +
+				'&name=' + encodeURIComponent(server.name || server.address);
+		}, 250);
 		return;
 	}
 	if (action.startsWith('copy:')) {

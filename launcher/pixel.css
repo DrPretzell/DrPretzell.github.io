@@ -1,0 +1,125 @@
+/* Pretzel Client - pixel theme.
+ *
+ * Loaded after launcher.css. Keeps the black + gold palette but switches the
+ * whole shell to a compact, squared, pixel look: Press Start 2P for labels,
+ * hard 2px borders, no radii, no blurred shadows, pixelated artwork.
+ */
+
+@font-face {
+	font-family: 'Pretzel Pixel';
+	src: url('/launcher/assets/fonts/press-start-2p.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root {
+	--radius: 0px;
+	--px: 'Pretzel Pixel', 'Cascadia Mono', ui-monospace, monospace;
+	--gold-px: #f2b84b;
+	--ink: #05060a;
+	--line-hard: #2a2f3a;
+}
+
+/* ------------------------------------------------------------ typography */
+
+body {
+	font-size: 12px;
+	letter-spacing: 0.01em;
+}
+
+h1, h2, h3, h4, h5,
+.page-head h1,
+.pm-title,
+.premium-title,
+.rail-brand,
+.crumb-name,
+.brand-name {
+	font-family: var(--px);
+	font-weight: 400;
+	letter-spacing: 0.02em;
+	line-height: 1.5;
+}
+
+.page-head h1 { font-size: 15px; }
+.page-head p { font-size: 10.5px; }
+
+button, .btn, .pill, .tagpill, .chip, .rail-btn, .pm-tab, .pm-add,
+.account, .crumb-name, .pm-name {
+	font-family: var(--px);
+	letter-spacing: 0.01em;
+}
+
+.pill, .tagpill, .chip { font-size: 8.5px; }
+.btn { font-size: 9px; }
+.account-text { font-size: 9px; }
+.pm-name { font-size: 8.5px; line-height: 1.6; }
+.pm-sub, .pm-desc, .pm-covers, .pm-missing { font-family: 'Cascadia Mono', ui-monospace, monospace; }
+
+/* --------------------------------------------------------------- surface */
+
+.rail { width: 52px; padding: 10px 0; }
+.app { grid-template-columns: 52px 1fr; }
+.rail-brand {
+	width: 30px; height: 30px;
+	margin-bottom: 6px;
+	border: 2px solid var(--line-hard);
+	border-radius: 0;
+	box-shadow: 2px 2px 0 #000;
+	overflow: hidden;
+}
+.rail-brand img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.rail-btn { width: 34px; height: 34px; border-radius: 0; border: 2px solid transparent; }
+.rail-btn:hover { border-color: var(--line-hard); }
+.rail-btn.active { border-color: var(--gold-px); background: #1a1509; }
+.rail-btn svg { width: 17px; height: 17px; }
+.rail-btn .badge { border-radius: 0; font-size: 8px; }
+
+.topbar {
+	padding: 6px 10px;
+	border-bottom: 2px solid #14171d;
+}
+.crumb-logo { width: 18px; height: 18px; image-rendering: pixelated; }
+.crumb-name { font-size: 10px; }
+.pill { padding: 3px 7px; border-radius: 0; }
+.icon-btn { width: 26px; height: 26px; border-radius: 0; }
+.account { padding: 3px 8px 3px 4px; border-radius: 0; }
+.head-24 { width: 20px; height: 20px; }
+.head { border-radius: 0 !important; }
+
+.card, .premium, .friends-panel, .server-card, .empty, .locked,
+.modal, .news-card, .server-strip, .version-card {
+	border-radius: 0 !important;
+}
+
+.modal {
+	border: 2px solid var(--line-hard);
+	box-shadow: 4px 4px 0 #000;
+}
+.modal-x { border-radius: 0; }
+
+.btn { border-radius: 0; height: 26px; padding: 0 10px; }
+.btn.gold { box-shadow: 2px 2px 0 #000; }
+.input, input, select, textarea { border-radius: 0 !important; }
+
+.pixelated, .pm-logo img, .head-img { image-rendering: pixelated; }
+
+/* pixel icon alignment */
+.px-ico { display: inline-block; vertical-align: -0.16em; flex: 0 0 auto; }
+
+/* scrollbars stay thin and hard-edged */
+* { scrollbar-color: #2c323d transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #2c323d; }
+::-webkit-scrollbar-track { background: #0a0c10; }
+
+/* the launchpad hero is a lot of empty space; tighten it */
+.view { padding: 12px 14px 18px; }
+.lp { gap: 10px; }
+.hero { min-height: 150px; }
+.launch { padding: 12px 14px; }
+.launch small { font-size: 8.5px; }
+.friends-panel, .premium, .version-card, .server-strip { padding: 10px; }
+.news-card, .server-card { padding: 10px; }
+.welcome-row h1 { font-size: 15px; }
+.announce { font-size: 10px; padding: 6px 10px; }

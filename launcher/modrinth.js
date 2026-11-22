@@ -1,19 +1,15 @@
-// Pretzel Client - Modrinth mod browser.
+// Pretzel Client - Mods page on the official Modrinth API.
 //
-// Everything on this page comes from https://api.modrinth.com/v2: search results,
-// project metadata, icons, authors, versions, files and dependencies. Nothing is
-// hardcoded. Requests are cached for a few minutes, time out, page by page, and
-// surface real errors with a retry.
-//
-// Honest compatibility: this client runs Minecraft in the browser through TeaVM,
-// so a Fabric / Forge / Quilt / NeoForge jar cannot be executed inside it. The
-// page says so per project instead of claiming a working install; the download
-// button hands over the real file and the library tracks it for updates.
+// Every card, icon, author, version and file on this page is a response from
+// https://api.modrinth.com/v2 - nothing is hardcoded. The page is filtered to
+// Minecraft 1.21.11, the version this client builds, and INSTALL sends the real
+// file through PretzelModStorage: download, hash check, per-account storage,
+// then registered with the client so the hub and this page list the same mods.
 (function () {
 	'use strict';
 
 	var API = 'https://api.modrinth.com/v2';
-	var LIBRARY = 'pretzel.modrinth.library.v1';
+	var GAME_VERSION = '1.21.11';
 	var PAGE = 20;
 	var TIMEOUT = 12000;
 	var TTL = 5 * 60 * 1000;
@@ -29,7 +25,10 @@
 		detail: null,
 		versions: null,
 		versionsLoading: false,
-		versionsError: ''
+		versionsError: '',
+		mode: 'search',
+		installing: {},
+		installError: ''
 	};
 
 	var cache = {};
@@ -44,25 +43,38 @@
 		});
 	}
 
-	function read(key, fallback) {
-		try {
-			var raw = localStorage.getItem(key);
-			return raw ? JSON.parse(raw) : fallback;
-		} catch (e) { return fallback; }
+	function toast(message, bad) {
+		if (typeof window.pretzelToast === 'function') { window.pretzelToast(message, bad); return; }
+		var stack = document.getElementById('toasts');
+		if (!stack) return;
+		var node = document.createElement('div');
+		node.className = 'toast ' + (bad ? 'bad' : 'good');
+		node.textContent = message;
+		stack.appendChild(node);
+		setTimeout(function () { node.remove(); }, 4200);
 	}
 
-	function write(key, value) {
-		try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+	function storage() {
+		return window.PretzelModStorage || null;
 	}
 
-	function cachedGet(url) {
-		var hit = cache[url];
-		if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.data);
-		return fetchJson(url).then(function (data) {
-			cache[url] = { at: Date.now(), data: data };
-			return data;
-		});
+	function installed(projectId) {
+		return storage() ? storage().find(projectId) : null;
 	}
+
+	function installedCount() {
+		return storage() ? storage().list().length : 0;
+	}
+
+	function human(bytes) {
+		var value = Number(bytes) || 0;
+		if (value >= 1073741824) return (value / 1073741824).toFixed(1) + ' GB';
+		if (value >= 1048576) return (value / 1048576).toFixed(1) + ' MB';
+		if (value >= 1024) return Math.round(value / 1024) + ' KB';
+		return value + ' B';
+	}
+
+	// ------------------------------------------------------------------ fetch
 
 	function fetchJson(url) {
 		var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -83,7 +95,14 @@
 		});
 	}
 
-	// ------------------------------------------------------------ formatting
+	function cachedGet(url) {
+		var hit = cache[url];
+		if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.data);
+		return fetchJson(url).then(function (data) {
+			cache[url] = { at: Date.now(), data: data };
+			return data;
+		});
+	}
 
 	function compact(n) {
 		var value = Number(n) || 0;
@@ -93,41 +112,15 @@
 		return String(value);
 	}
 
-	function library() {
-		return read(LIBRARY, []) || [];
-	}
-
-	function saveLibrary(list) {
-		write(LIBRARY, list);
-	}
-
-	function inLibrary(id) {
-		return library().some(function (item) { return item.id === id; });
-	}
-
-	// --------------------------------------------------------- compatibility
-
-	// The browser build renders the game with TeaVM; it has no JVM and cannot
-	// load a jar. This is the single place that decides the verdict.
-	function verdict(project, version) {
-		var loaders = (version && version.loaders) || (project && project.loaders) || [];
-		var browser = loaders.filter(function (l) {
-			return l === 'eaglercraft' || l === 'browser';
+	/** Versions that actually ship for this client's Minecraft version. */
+	function forThisVersion(versions) {
+		return (versions || []).filter(function (version) {
+			var games = version.game_versions || [];
+			return games.indexOf(GAME_VERSION) >= 0;
 		});
-		if (browser.length) {
-			return { ok: true, label: 'BROWSER BUILD', why: 'This project ships a browser-compatible build.' };
-		}
-		var named = loaders.filter(function (l) { return l !== 'minecraft'; }).map(function (l) {
-			return l.charAt(0).toUpperCase() + l.slice(1);
-		});
-		return {
-			ok: false,
-			label: named.length ? named.join(' / ') + ' ONLY' : 'JAVA MOD ONLY',
-			why: 'This is a Java mod. Pretzel runs Minecraft in the browser, so it can be downloaded and tracked, but it cannot be loaded inside the web client.'
-		};
 	}
 
-	// ---------------------------------------------------------------- style
+	// ------------------------------------------------------------------ style
 
 	function style() {
 		if (document.getElementById('pm-style')) return;
@@ -136,61 +129,65 @@
 			'.pm-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}' +
 			'.pm-title{font-size:13px;color:#f4f6fa}' +
 			'.pm-count{color:#6f757e;font-size:9px}' +
-			'.pm-line{margin:6px 0 0;color:#8f949d;font-size:10px;line-height:1.6;max-width:820px}' +
+			'.pm-line{margin:8px 0 0;color:#8f949d;font-size:10px;line-height:1.7;max-width:840px}' +
 			'.pm-line b{color:#e8c37a;font-weight:400}' +
-			'.pm-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:10px 0 8px}' +
-			'.pm-tab{padding:5px 9px;border:2px solid #292d35;background:#14171c;color:#a7adb6;font-size:8px;cursor:pointer}' +
+			'.pm-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0 10px}' +
+			'.pm-tab{padding:6px 10px;border:2px solid #292d35;background:#14171c;color:#a7adb6;font-size:8px;cursor:pointer}' +
 			'.pm-tab:hover{border-color:#3d434d;color:#eef1f5}' +
 			'.pm-tab.on{border-color:#8a6a22;background:#241d10;color:#f2c66a}' +
-			'.pm-search{margin-left:auto;min-width:190px;padding:6px 9px;border:2px solid #292d35;background:#101317;color:#e8ecf1;font-size:10.5px;outline:none}' +
+			'.pm-search{margin-left:auto;min-width:200px;padding:7px 10px;border:2px solid #292d35;background:#101317;color:#e8ecf1;font-size:10.5px;outline:none}' +
 			'.pm-search:focus{border-color:#8a6a22}' +
-			'.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:7px}' +
-			'.pm-card{display:flex;flex-direction:column;border:2px solid #24272e;background:#14171c;padding:9px;cursor:pointer}' +
+			'.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}' +
+			'.pm-card{display:flex;flex-direction:column;border:2px solid #24272e;background:#14171c;padding:10px;cursor:pointer}' +
 			'.pm-card:hover{border-color:#3a3f49;background:#171b21}' +
-			'.pm-top{display:flex;align-items:center;gap:8px;min-width:0}' +
-			'.pm-logo{flex:0 0 auto;width:28px;height:28px;display:grid;place-items:center;background:#0d1014;border:2px solid #232830;overflow:hidden}' +
-			'.pm-logo img{width:24px;height:24px;object-fit:cover;image-rendering:pixelated}' +
+			'.pm-top{display:flex;align-items:center;gap:9px;min-width:0}' +
+			'.pm-logo{flex:0 0 auto;width:30px;height:30px;display:grid;place-items:center;background:#0d1014;border:2px solid #232830;overflow:hidden}' +
+			'.pm-logo img{width:26px;height:26px;object-fit:cover;image-rendering:pixelated}' +
 			'.pm-names{display:flex;flex-direction:column;min-width:0}' +
 			'.pm-name{font-size:8.5px;color:#eef1f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.7}' +
 			'.pm-sub{font-size:9px;color:#6f757e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-			'.pm-desc{margin:6px 0 0;color:#98a0aa;font-size:10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:30px}' +
-			'.pm-meta{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:9px;color:#7d8794;flex-wrap:wrap}' +
+			'.pm-desc{margin:7px 0 0;color:#98a0aa;font-size:10px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:31px}' +
+			'.pm-meta{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:9px;color:#7d8794;flex-wrap:wrap}' +
 			'.pm-chip{border:1px solid #2a2f38;padding:2px 5px;color:#98a2ae;font-size:8px;font-family:"Pretzel Pixel",monospace}' +
-			'.pm-chip.no{border-color:#5a2a2a;color:#ff9d9d}' +
 			'.pm-chip.ok{border-color:#33513d;color:#8bd6a4}' +
-			'.pm-row{display:flex;align-items:center;gap:7px;margin-top:8px}' +
-			'.pm-add{min-width:84px;padding:5px 10px;border:2px solid #8a6a22;background:#241d10;color:#f2c66a;font-size:7.5px;cursor:pointer}' +
+			'.pm-row{display:flex;align-items:center;gap:7px;margin-top:10px}' +
+			'.pm-add{min-width:90px;padding:6px 11px;border:2px solid #8a6a22;background:#241d10;color:#f2c66a;font-size:7.5px;cursor:pointer}' +
 			'.pm-add:hover{background:#2e2513}' +
 			'.pm-add.ghost{border-color:#2f3540;background:none;color:#a8b1bd;min-width:0}' +
+			'.pm-add.installed{border-color:#33513d;background:#101a13;color:#8bd6a4}' +
 			'.pm-add:disabled{border-color:#2a2e35;background:#15181d;color:#666c76;cursor:default}' +
 			'.pm-src{margin-left:auto;border:1px solid #262a31;padding:2px 5px;color:#7d848e;font-size:8px;cursor:help}' +
-			'.pm-state{padding:26px 8px;text-align:center;color:#8f949d;font-size:11px}' +
-			'.pm-state .pm-add{margin-top:10px}' +
-			'.pm-page{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;color:#79838f;font-size:9.5px}' +
-			'.pm-page button{padding:5px 9px;border:2px solid #292d35;background:#14171c;color:#c3ccd8;font-size:8px;cursor:pointer}' +
+			'.pm-state{padding:28px 8px;text-align:center;color:#8f949d;font-size:11px;line-height:1.7}' +
+			'.pm-state .pm-add{margin-top:12px}' +
+			'.pm-page{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;color:#79838f;font-size:9.5px}' +
+			'.pm-page button{padding:6px 10px;border:2px solid #292d35;background:#14171c;color:#c3ccd8;font-size:8px;cursor:pointer}' +
 			'.pm-page button:disabled{opacity:.4;cursor:default}' +
 			'.pm-sheet{position:fixed;inset:0;z-index:75;display:grid;place-items:center;background:rgba(3,4,7,.7);padding:16px}' +
 			'.pm-detail{width:min(760px,96vw);max-height:88vh;overflow:auto;background:#12151b;border:2px solid #2b303a;box-shadow:6px 6px 0 #000;color:#e9edf3}' +
 			'.pm-detail-head{display:flex;gap:10px;align-items:flex-start;padding:12px;border-bottom:2px solid #22262e}' +
 			'.pm-detail-head h3{margin:0 0 3px;font-family:"Pretzel Pixel",monospace;font-size:11px;color:#fff}' +
 			'.pm-detail-body{padding:12px;font-size:11px;color:#aab3bf;line-height:1.65}' +
-			'.pm-detail-body h4{margin:14px 0 6px;font-family:"Pretzel Pixel",monospace;font-size:8.5px;color:#e8c37a}' +
-			'.pm-version{display:flex;align-items:center;gap:8px;padding:7px 8px;border:2px solid #232830;background:#151920;margin-bottom:5px;flex-wrap:wrap}' +
+			'.pm-detail-body h4{margin:15px 0 7px;font-family:"Pretzel Pixel",monospace;font-size:8.5px;color:#e8c37a}' +
+			'.pm-version{display:flex;align-items:center;gap:8px;padding:8px;border:2px solid #232830;background:#151920;margin-bottom:6px;flex-wrap:wrap}' +
 			'.pm-version .v-name{font-family:"Pretzel Pixel",monospace;font-size:8px;color:#eef2f7}' +
 			'.pm-version .v-sub{font-size:9.5px;color:#7d8794}' +
 			'.pm-x{margin-left:auto;background:none;border:2px solid transparent;color:#98a1ad;cursor:pointer;padding:2px 5px}' +
 			'.pm-x:hover{border-color:#2f3540;color:#fff}' +
-			'.pm-note{color:#8a7350;font-size:9.5px;line-height:1.6;border:2px solid #3a2f1b;background:#18140c;padding:8px}';
+			'.pm-note{color:#8a7350;font-size:9.5px;line-height:1.7;border:2px solid #3a2f1b;background:#18140c;padding:9px;margin:10px 0 0}' +
+			'.pm-own{display:flex;align-items:center;gap:9px;padding:9px;border:2px solid #24272e;background:#14171c;margin-bottom:6px}' +
+			'.pm-own.off{opacity:.55}' +
+			'.pm-own .pm-names{flex:1}' +
+			'.pm-own .acts{display:flex;gap:5px}';
 		var node = document.createElement('style');
 		node.id = 'pm-style';
 		node.textContent = css;
 		document.head.appendChild(node);
 	}
 
-	// --------------------------------------------------------------- search
+	// ----------------------------------------------------------------- search
 
 	function searchUrl() {
-		var facets = [['project_type:mod']];
+		var facets = [['project_type:mod'], ['versions:' + GAME_VERSION]];
 		var params = [
 			'query=' + encodeURIComponent(state.query),
 			'limit=' + PAGE,
@@ -204,6 +201,7 @@
 	async function runSearch() {
 		state.loading = true;
 		state.error = '';
+		state.mode = 'search';
 		render();
 		try {
 			var data = await cachedGet(searchUrl());
@@ -240,14 +238,89 @@
 		}
 	}
 
-	// --------------------------------------------------------------- render
+	// --------------------------------------------------------------- install
+
+	function setProgress(projectId, text) {
+		state.installing[projectId] = text;
+		var holder = document.querySelector('[data-progress="' + projectId + '"]');
+		if (holder) holder.textContent = text;
+	}
+
+	async function doInstall(projectId, title, versionId) {
+		var store = storage();
+		if (!store) { toast('Mod storage is not loaded on this page.', true); return; }
+		state.installError = '';
+		state.installing[projectId] = 'FETCHING';
+		render();
+		try {
+			var project = state.detail && state.detail.id === projectId ? state.detail : await cachedGet(API + '/project/' + encodeURIComponent(projectId));
+			var versions = forThisVersion(state.versions && state.detail && state.detail.id === projectId
+				? state.versions
+				: await cachedGet(API + '/project/' + encodeURIComponent(projectId) + '/version'));
+			var version = versionId
+				? versions.find(function (v) { return v.id === versionId; })
+				: versions[0];
+			if (!version) throw new Error('No ' + GAME_VERSION + ' release is published for this project yet.');
+			var file = (version.files || []).find(function (f) { return f.primary; }) || (version.files || [])[0];
+			if (!file) throw new Error('That version has no downloadable file.');
+
+			var entry = await store.install(project, version, file, function (got, total) {
+				var text = total ? Math.min(99, Math.round((got / total) * 100)) + '%' : human(got);
+				setProgress(projectId, text);
+			});
+			toast((title || project.title) + ' installed to your account storage');
+			state.installing[projectId] = '';
+			if (!entry.loadable) {
+				toast('Stored as a Java file - the browser runtime cannot execute it', true);
+			}
+			if (state.mode === 'mine') await refreshUpdates();
+		} catch (error) {
+			state.installError = error && error.message ? error.message : 'Install failed.';
+			toast(state.installError, true);
+		} finally {
+			delete state.installing[projectId];
+			render();
+		}
+	}
+
+	async function refreshUpdates() {
+		var store = storage();
+		if (!store) return;
+		var list = store.list();
+		for (var i = 0; i < list.length; i++) {
+			var item = list[i];
+			try {
+				var versions = forThisVersion(await cachedGet(API + '/project/' + encodeURIComponent(item.id) + '/version'));
+				var latest = versions[0];
+				item.update = latest && latest.version_number && latest.version_number !== item.version
+					? { versionId: latest.id, version: latest.version_number }
+					: null;
+			} catch (e) { item.update = null; }
+		}
+		state.ownUpdate = list.filter(function (i) { return i.update; }).length;
+		render();
+	}
+
+	// ----------------------------------------------------------------- render
+
+	function installButton(projectId, title, versionId) {
+		var entry = installed(projectId);
+		var busy = state.installing[projectId];
+		if (busy) {
+			return '<button class="pm-add" disabled data-progress="' + esc(projectId) + '">' + esc(busy) + '</button>';
+		}
+		if (entry && !versionId) {
+			return '<button class="pm-add installed" data-mr="own">IN CLIENT</button>';
+		}
+		return '<button class="pm-add" data-mr="install" data-id="' + esc(projectId) + '" data-title="' + esc(title || '') +
+			'" data-version="' + esc(versionId || '') + '">INSTALL</button>';
+	}
 
 	function card(hit) {
-		var loaders = (hit.categories || []).filter(function (c) {
-			return ['fabric', 'forge', 'quilt', 'neoforge', 'liteloader', 'rift'].indexOf(c) >= 0;
-		});
-		var v = verdict({ loaders: loaders }, null);
-		return '<article class="pm-card" data-mr="open" data-id="' + esc(hit.project_id || hit.slug) + '">' +
+		var id = hit.project_id || hit.slug;
+		var games = hit.versions || [];
+		var hasThis = games.indexOf(GAME_VERSION) >= 0 || !games.length;
+		return '<article class="pm-card" data-mr="open" data-id="' + esc(id) + '">' +
 			'<div class="pm-top">' +
 				'<span class="pm-logo">' + (hit.icon_url
 					? '<img src="' + esc(hit.icon_url) + '" alt="" loading="lazy" onerror="this.remove()">'
@@ -257,15 +330,12 @@
 			'</div>' +
 			'<p class="pm-desc">' + esc(hit.description) + '</p>' +
 			'<div class="pm-meta">' +
-				'<span class="pm-chip' + (v.ok ? ' ok' : ' no') + '">' + esc(v.label) + '</span>' +
-				(hit.versions && hit.versions.length ? '<span class="pm-chip">' + esc(hit.versions[hit.versions.length - 1]) + '</span>' : '') +
+				'<span class="pm-chip' + (hasThis ? ' ok' : '') + '">' + GAME_VERSION + '</span>' +
 				(hit.follows ? '<span class="pm-chip">\u2665 ' + compact(hit.follows) + '</span>' : '') +
 			'</div>' +
 			'<div class="pm-row">' +
-				'<button class="pm-add ghost" data-mr="open" data-id="' + esc(hit.project_id || hit.slug) + '">Versions</button>' +
-				(inLibrary(hit.project_id)
-					? '<button class="pm-add" disabled>Saved</button>'
-					: '<button class="pm-add" data-mr="save" data-id="' + esc(hit.project_id) + '" data-title="' + esc(hit.title) + '">Save</button>') +
+				'<button class="pm-add ghost" data-mr="open" data-id="' + esc(id) + '">Versions</button>' +
+				installButton(hit.project_id || id, hit.title) +
 				'<span class="pm-src" title="api.modrinth.com/v2">API</span>' +
 			'</div>' +
 		'</article>';
@@ -277,17 +347,20 @@
 			return '<div class="pm-state">' + esc(state.versionsError) +
 				'<br><button class="pm-add" data-mr="retry-versions">Retry</button></div>';
 		}
+		var versions = forThisVersion(state.versions);
 		if (!state.versions || !state.versions.length) return '<div class="pm-state">This project has no published versions.</div>';
-		return state.versions.slice(0, 12).map(function (v) {
+		if (!versions.length) {
+			return '<div class="pm-state">No ' + GAME_VERSION + ' release published. ' +
+				esc((state.versions[0] && (state.versions[0].game_versions || []).slice(-1)[0]) || '') + ' is the newest one.</div>';
+		}
+		return versions.slice(0, 12).map(function (v) {
 			var file = (v.files || []).find(function (f) { return f.primary; }) || (v.files || [])[0] || null;
-			var vv = verdict(state.detail, v);
 			return '<div class="pm-version">' +
 				'<span class="pm-names"><span class="v-name">' + esc(v.version_number) + '</span>' +
 				'<span class="v-sub">' + esc((v.game_versions || []).slice(-2).join(', ')) + ' \u00b7 ' +
-					esc((v.loaders || []).join(' / ')) + (file ? ' \u00b7 ' + compact(file.size) + 'B' : '') + '</span></span>' +
-				'<span class="pm-chip' + (vv.ok ? ' ok' : ' no') + '">' + esc(vv.label) + '</span>' +
+				esc((v.loaders || []).join(' / ')) + (file ? ' \u00b7 ' + human(file.size) : '') + '</span></span>' +
 				(file
-					? '<a class="pm-add" style="text-decoration:none" href="' + esc(file.url) + '" target="_blank" rel="noopener noreferrer" data-mr="file">Download</a>'
+					? installButton(state.detail.id, state.detail.title, v.id)
 					: '<span class="pm-chip">no file</span>') +
 			'</div>';
 		}).join('');
@@ -295,9 +368,8 @@
 
 	function detailHTML() {
 		var p = state.detail;
-		var loaders = (p.loaders || []).filter(function (l) { return l !== 'minecraft'; });
-		var v = verdict(p, null);
 		var bodyText = String(p.body || '').replace(/[#*`>]/g, ' ').replace(/\s+/g, ' ').trim();
+		var entry = installed(p.id);
 		return '<div class="pm-sheet" data-mr="close"><div class="pm-detail" role="dialog" aria-modal="true">' +
 			'<div class="pm-detail-head">' +
 				'<span class="pm-logo" style="width:44px;height:44px">' + (p.icon_url
@@ -310,30 +382,62 @@
 			'</div>' +
 			'<div class="pm-detail-body">' +
 				'<p style="margin-top:0">' + esc(p.description) + '</p>' +
-				'<div class="pm-meta"><span class="pm-chip' + (v.ok ? ' ok' : ' no') + '">' + esc(v.label) + '</span>' +
-					loaders.map(function (l) { return '<span class="pm-chip">' + esc(l) + '</span>'; }).join('') +
-					'<span class="pm-chip">' + esc((p.game_versions || []).slice(-1)[0] || '') + '</span></div>' +
-				'<p class="pm-note" style="margin:9px 0">' + esc(v.why) + '</p>' +
-				'<h4>VERSIONS</h4>' + versionsHTML() +
+				'<div class="pm-meta"><span class="pm-chip ok">' + GAME_VERSION + '</span>' +
+					'<span class="pm-chip">' + esc((p.loaders || []).filter(function (l) { return l !== 'minecraft'; }).join(' / ') || 'datapack') + '</span>' +
+					(entry ? '<span class="pm-chip ok">IN CLIENT ' + esc(entry.version) + '</span>' : '') + '</div>' +
+				'<h4>VERSIONS FOR ' + GAME_VERSION + '</h4>' + versionsHTML() +
 				(bodyText ? '<h4>ABOUT</h4><p>' + esc(bodyText.slice(0, 900)) + (bodyText.length > 900 ? '\u2026' : '') + '</p>' : '') +
+				(state.installError ? '<p class="pm-note" style="border-color:#5a2a2a;color:#ffb4b4">' + esc(state.installError) + '</p>' : '') +
+				'<p class="pm-note">Installing stores the real file in this account\'s storage and registers it with the client. ' +
+					'A Java jar cannot be executed by the browser runtime, so it is kept and linked rather than run.</p>' +
 				'<p class="pm-note">Source: api.modrinth.com/v2 \u00b7 project ' + esc(p.id) + '</p>' +
 			'</div>' +
 		'</div></div>';
 	}
 
+	function ownHTML() {
+		var store = storage();
+		if (!store) return '<div class="pm-state">Mod storage did not load.</div>';
+		var list = store.list();
+		if (!list.length) {
+			return '<div class="pm-state">Nothing installed for <b>' + esc(store.account()) + '</b> yet.' +
+				'<br>Search a mod and press INSTALL - it lands in this account only.</div>';
+		}
+		return list.map(function (item) {
+			return '<div class="pm-own' + (item.enabled === false ? ' off' : '') + '">' +
+				'<span class="pm-logo">' + (item.icon
+					? '<img src="' + esc(item.icon) + '" alt="" loading="lazy" onerror="this.remove()">'
+					: ico('cube', 14, '#8a6a22')) + '</span>' +
+				'<span class="pm-names"><span class="pm-name">' + esc(item.title) + '</span>' +
+					'<span class="pm-sub">' + esc(item.version) + ' \u00b7 ' + human(item.size) + ' \u00b7 ' +
+					esc((item.loaders || []).filter(function (l) { return l !== 'minecraft'; }).join(' / ') || 'file') + '</span></span>' +
+				'<span class="acts">' +
+					(item.update
+						? '<button class="pm-add" data-mr="install" data-id="' + esc(item.id) + '" data-title="' + esc(item.title) +
+							'" data-version="' + esc(item.update.versionId) + '">UPDATE</button>'
+						: '') +
+					'<button class="pm-add ghost" data-mr="toggle" data-id="' + esc(item.id) + '">' +
+						(item.enabled === false ? 'ENABLE' : 'DISABLE') + '</button>' +
+					'<button class="pm-add ghost" data-mr="remove" data-id="' + esc(item.id) + '">REMOVE</button>' +
+				'</span>' +
+			'</div>';
+		}).join('') + '<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '.</p>';
+	}
+
 	function bodyHTML() {
-		if (state.loading) return '<div class="pm-state">Searching Modrinth\u2026</div>';
+		if (state.mode === 'mine') return ownHTML();
+		if (state.loading) return '<div class="pm-state">Searching Modrinth for ' + GAME_VERSION + ' mods\u2026</div>';
 		if (state.error) {
 			return '<div class="pm-state">' + esc(state.error) + '<br><button class="pm-add" data-mr="retry">Retry</button></div>';
 		}
 		if (!state.results.length) {
-			return '<div class="pm-state">No projects matched "' + esc(state.query) + '".</div>';
+			return '<div class="pm-state">No ' + GAME_VERSION + ' mods matched "' + esc(state.query) + '".</div>';
 		}
 		var pages = Math.max(1, Math.ceil(state.total / PAGE));
 		return '<div class="pm-grid">' + state.results.map(card).join('') + '</div>' +
-			'<div class="pm-page"><span>' + (state.page - 1) * PAGE + 1 + '\u2013' +
+			'<div class="pm-page"><span>' + ((state.page - 1) * PAGE + 1) + '\u2013' +
 				Math.min(state.page * PAGE, state.total) + ' of ' + compact(state.total) + ' mods</span>' +
-				'<span style="display:flex;gap:5px">' +
+				'<span style="display:flex;gap:6px">' +
 					'<button data-mr="page" data-value="' + (state.page - 1) + '"' + (state.page <= 1 ? ' disabled' : '') + '>Prev</button>' +
 					'<span style="align-self:center;font-size:9px">' + state.page + '/' + pages + '</span>' +
 					'<button data-mr="page" data-value="' + (state.page + 1) + '"' + (state.page >= pages ? ' disabled' : '') + '>Next</button>' +
@@ -343,57 +447,36 @@
 	function render() {
 		var root = document.getElementById('pretzel-mods-root');
 		if (!root) return;
+		var count = installedCount();
+		var store = storage();
 		root.innerHTML = '<div class="pm-wrap">' +
-			'<div class="pm-head"><span class="pm-title">Mods</span>' +
-				'<span class="pm-count">live from api.modrinth.com</span></div>' +
-			'<p class="pm-line">Real Modrinth search: every card, icon, author, version and file below is an API response. ' +
-				'<b>Java mods cannot be executed by the browser client</b>, so Pretzel downloads and tracks them instead of pretending they load.</p>' +
+			'<div class="pm-head"><span class="pm-title">Mods \u00b7 ' + GAME_VERSION + '</span>' +
+				'<span class="pm-count">live from api.modrinth.com \u00b7 ' + count + ' in this account</span></div>' +
+			'<p class="pm-line">Every project below is a real Modrinth response filtered to Minecraft ' + GAME_VERSION + '. ' +
+				'<b>INSTALL</b> downloads the file into the signed-in account\'s own storage and links it to the client - ' +
+				'no manual downloads, no copies shared between accounts.</p>' +
 			'<div class="pm-bar">' +
 				['relevance', 'downloads', 'follows', 'newest'].map(function (index) {
 					var labels = { relevance: 'RELEVANCE', downloads: 'DOWNLOADS', follows: 'FOLLOWS', newest: 'NEWEST' };
-					return '<button class="pm-tab' + (state.index === index ? ' on' : '') + '" data-mr="index" data-value="' + index + '">' + labels[index] + '</button>';
+					return '<button class="pm-tab' + (state.index === index && state.mode === 'search' ? ' on' : '') +
+						'" data-mr="index" data-value="' + index + '">' + labels[index] + '</button>';
 				}).join('') +
-				'<button class="pm-tab" data-mr="library">LIBRARY ' + library().length + '</button>' +
-				'<input class="pm-search" id="pm-search" type="search" placeholder="Search Modrinth mods\u2026" value="' + esc(state.query) + '">' +
+				'<button class="pm-tab' + (state.mode === 'mine' ? ' on' : '') + '" data-mr="own">MY MODS ' + count + '</button>' +
+				'<input class="pm-search" id="pm-search" type="search" placeholder="Search Modrinth ' + GAME_VERSION + ' mods\u2026" value="' + esc(state.query) + '">' +
 			'</div>' +
 			bodyHTML() +
 		'</div>' +
-		(state.detail ? detailHTML() : '');
+		(state.detail ? detailHTML() : '') +
+		(store ? '' : '<p class="pm-note">Mod storage module did not load - check mod-storage.js.</p>');
 	}
 
-	// -------------------------------------------------------------- actions
-
-	function save(hitId, title) {
-		var list = library();
-		if (list.some(function (item) { return item.id === hitId; })) return;
-		list.push({ id: hitId, title: title, at: Date.now(), version: null });
-		saveLibrary(list);
-		checkUpdates();
-		render();
-	}
-
-	async function checkUpdates() {
-		var list = library();
-		var changed = false;
-		for (var i = 0; i < list.length; i++) {
-			var item = list[i];
-			try {
-				var versions = await cachedGet(API + '/project/' + encodeURIComponent(item.id) + '/version');
-				var latest = versions && versions[0];
-				if (latest && latest.version_number && latest.version_number !== item.version) {
-					item.version = latest.version_number;
-					changed = true;
-				}
-			} catch (e) { /* a bookmarked project may be removed; keep the entry */ }
-		}
-		if (changed) saveLibrary(list);
-	}
+	// ---------------------------------------------------------------- actions
 
 	function mount(root) {
 		if (!root) return;
 		style();
 		render();
-		if (!state.results.length && !state.loading && !state.error) runSearch();
+		if (!state.results.length && !state.loading && !state.error && state.mode === 'search') runSearch();
 	}
 
 	function wire() {
@@ -418,9 +501,33 @@
 				return;
 			}
 			if (act === 'open') { openProject(el.getAttribute('data-id')); return; }
-			if (act === 'save') {
+			if (act === 'install') {
 				event.stopPropagation();
-				save(el.getAttribute('data-id'), el.getAttribute('data-title'));
+				var id = el.getAttribute('data-id');
+				if (!id) return;
+				doInstall(id, el.getAttribute('data-title'), el.getAttribute('data-version') || '');
+				return;
+			}
+			if (act === 'own') {
+				state.mode = 'mine';
+				state.detail = null;
+				state.page = 1;
+				render();
+				refreshUpdates();
+				return;
+			}
+			if (act === 'toggle') {
+				if (storage()) storage().toggle(el.getAttribute('data-id'));
+				render();
+				return;
+			}
+			if (act === 'remove') {
+				var projectId = el.getAttribute('data-id');
+				if (!storage()) return;
+				storage().remove(projectId).then(function () {
+					toast('Removed from ' + storage().account() + ' storage');
+					render();
+				});
 				return;
 			}
 			if (act === 'retry') { runSearch(); return; }
@@ -432,23 +539,11 @@
 				render();
 				return;
 			}
-			if (act === 'library') {
-				var list = library();
-				state.query = '';
-				state.results = list.map(function (item) {
-					return { project_id: item.id, slug: item.id, title: item.title, description: 'Saved to your library', author: 'library', downloads: 0 };
-				});
-				state.total = list.length;
-				state.loading = false;
-				state.error = '';
-				render();
-				return;
-			}
 		});
 	}
 
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
 	else wire();
 
-	window.PretzelMods = { mount: mount, search: runSearch };
+	window.PretzelMods = { mount: mount, search: runSearch, gameVersion: GAME_VERSION };
 })();

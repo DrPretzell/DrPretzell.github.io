@@ -10,6 +10,8 @@
 
 	var CHAT = 'pretzel.chat.v1';
 	var PRIVACY = 'pretzel.chat.privacy.v1';
+	var LEGACY = 'pretzel.friends.clean.v1';
+	var EMOJIS = ['smile', 'heart', 'star', 'bolt', 'check', 'coin', 'cube', 'globe', 'rocket', 'halo', 'wings', 'person', 'discord', 'x', 'youtube', 'twitch'];
 	var ACCOUNTS = 'pretzel.accounts.v1';
 	var SESSION = 'pretzel.session.v1';
 
@@ -93,6 +95,46 @@
 		return read(PRIVACY, 'anyone') || 'anyone';
 	}
 
+	/** Friends and chats that came from an older seeded build are dropped once. */
+	function cleanLegacy() {
+		try {
+			if (localStorage.getItem(LEGACY)) return;
+			var list = read(ACCOUNTS, []);
+			if (Array.isArray(list)) {
+				list.forEach(function (acc) {
+					acc.friends = [];
+					acc.requests = [];
+					acc.sent = [];
+				});
+				write(ACCOUNTS, list);
+			}
+			write(CHAT, {});
+			localStorage.setItem(LEGACY, '1');
+		} catch (e) { /* storage blocked */ }
+	}
+
+	function friendOf(name) {
+		return friends().find(function (f) {
+			return String(f.name).toLowerCase() === String(name).toLowerCase();
+		}) || null;
+	}
+
+	function flagOf(name, flag) {
+		var person = friendOf(name);
+		return Boolean(person && person[flag]);
+	}
+
+	function setFlag(name, flag, value) {
+		saveAccount(function (acc) {
+			var person = (acc.friends || []).find(function (f) {
+				return String(f.name).toLowerCase() === String(name).toLowerCase();
+			});
+			if (!person) return;
+			if (value) person[flag] = true;
+			else delete person[flag];
+		});
+	}
+
 	/** Settings owns the real privacy choice; fall back to the old key on its own. */
 	function privacyValue() {
 		try {
@@ -170,7 +212,18 @@
 			'.px-d-foot{display:flex;align-items:center;gap:8px;padding:8px 11px;border-top:2px solid #22262e;background:#101318;font-size:8px;font-family:"Pretzel Pixel",monospace;color:#6d7683}' +
 			'.px-d-foot button{margin-left:auto;background:none;border:2px solid #2b303a;color:#f2b84b;font-family:"Pretzel Pixel",monospace;font-size:7.5px;padding:5px 7px;cursor:pointer}' +
 			'.px-d-foot button:hover{border-color:#8a6a22}' +
-			'.px-rail-friends{cursor:pointer}';
+			'.px-rail-friends{cursor:pointer}' +
+			'.px-tag{display:inline-block;margin-left:5px;padding:1px 4px;border:1px solid #3a414d;color:#8b95a2;font-family:"Pretzel Pixel",monospace;font-size:6.5px;letter-spacing:.04em;vertical-align:1px}' +
+			'.px-tag.bad{border-color:#5a2a2a;color:#ff9d9d}' +
+			'.px-row.blocked{opacity:.62}' +
+			'.px-chat-tools{display:flex;align-items:center;gap:6px;padding:8px 11px;border-bottom:2px solid #22262e;background:#101318}' +
+			'.px-chat-who{display:inline-flex;align-items:center;gap:5px;font-family:"Pretzel Pixel",monospace;font-size:8px;color:#cfd6e0}' +
+			'.px-chat-tools .px-row-actions{margin-left:auto}' +
+			'.px-emoji{display:flex;flex-wrap:wrap;gap:4px;padding:8px 11px;border-top:2px solid #22262e;background:#0d1015}' +
+			'.px-emoji-item{width:28px;height:28px;display:grid;place-items:center;background:#151a20;border:2px solid #242a33;cursor:pointer}' +
+			'.px-emoji-item:hover{border-color:#8a6a22;background:#242010}' +
+			'.px-emoji-btn{width:32px;display:grid;place-items:center;background:#151a20;border:2px solid #242a33;cursor:pointer}' +
+			'.px-emoji-btn:hover{border-color:#8a6a22}';
 		var node = document.createElement('style');
 		node.id = 'px-messages-style';
 		node.textContent = css;
@@ -179,10 +232,17 @@
 
 	// --------------------------------------------------------------- render
 
+	function tagsFor(person) {
+		var out = '';
+		if (person.blocked) out += '<span class="px-tag bad">BLOCKED</span>';
+		if (person.muted) out += '<span class="px-tag">MUTED</span>';
+		return out;
+	}
+
 	function friendRow(person, actions) {
 		var online = person.state === 'online';
-		return '<div class="px-row">' + head(person.skin, 'head-26', person.name) +
-			'<span class="px-row-main"><span class="px-row-name">' + esc(person.name) + '</span>' +
+		return '<div class="px-row' + (person.blocked ? ' blocked' : '') + '">' + head(person.skin, 'head-26', person.name) +
+			'<span class="px-row-main"><span class="px-row-name">' + esc(person.name) + tagsFor(person) + '</span>' +
 			'<span class="px-row-sub' + (online ? ' on' : '') + '">' + (online ? 'ONLINE' : 'OFFLINE') + '</span></span>' +
 			(actions || '') + '</div>';
 	}
@@ -220,22 +280,23 @@
 		} else {
 			rows = shown.length
 				? shown.map(function (f) {
+					if (f.blocked) {
+						return friendRow(f, '<span class="px-row-actions">' +
+							'<button class="px-mini ok" title="Unblock" data-act="unblock" data-name="' + esc(f.name) + '">' + ico('check', 12) + '</button>' +
+							'<button class="px-mini" title="Remove" data-act="remove" data-name="' + esc(f.name) + '">' + ico('trash', 12) + '</button></span>');
+					}
 					return friendRow(f, '<span class="px-row-actions">' +
 						'<button class="px-mini" title="Message" data-act="chat" data-name="' + esc(f.name) + '">' + ico('chat', 12) + '</button>' +
+						'<button class="px-mini' + (f.muted ? ' ok' : '') + '" title="' + (f.muted ? 'Unmute' : 'Mute') + '" data-act="mute" data-name="' + esc(f.name) + '">' + ico('minus', 12) + '</button>' +
+						'<button class="px-mini" title="Block" data-act="block" data-name="' + esc(f.name) + '">' + ico('lock', 12) + '</button>' +
 						'<button class="px-mini" title="Remove" data-act="remove" data-name="' + esc(f.name) + '">' + ico('trash', 12) + '</button></span>');
 				}).join('')
-				: '<div class="px-empty">No friends yet. Type a Pretzel username above to send a request.</div>';
+				: '<div class="px-empty">No friends yet. Friends you add on your Pretzel account appear here.</div>';
 		}
 
 		return '' +
 			'<div class="px-search">' + ico('search', 12, '#7d8794') +
 				'<input id="px-friend-q" placeholder="Search friends" value="' + esc(state.query) + '" autocomplete="off">' +
-			'</div>' +
-			'<div style="display:flex;gap:6px;margin-top:6px">' +
-				'<div class="px-search" style="flex:1">' + ico('person', 12, '#7d8794') +
-					'<input id="px-friend-add" placeholder="Ranked account name" autocomplete="off">' +
-				'</div>' +
-				'<button class="px-send" data-act="request">Send Request</button>' +
 			'</div>' +
 			(state.error ? '<div class="px-hint" style="color:#ff8a8a">' + esc(state.error) + '</div>' : '') +
 			'<p class="px-hint">FRIENDS SEE WHEN YOU\'RE ONLINE AND CAN MESSAGE YOU</p>' +
@@ -310,12 +371,28 @@
 			list + friendList;
 	}
 
+	function emojiPanel() {
+		return '<div class="px-emoji">' + EMOJIS.map(function (name) {
+			return '<button class="px-emoji-item" data-act="emoji-add" data-emoji="' + name + '" title="' + name + '">' +
+				ico(name, 16, '#e9edf3') + '</button>';
+		}).join('') + '</div>';
+	}
+
 	function chatBody() {
 		var key = state.thread;
 		var map = threads();
 		var thread = map[key] || { messages: [] };
-		var person = friends().find(function (f) { return String(f.name).toLowerCase() === String(key).toLowerCase(); });
+		var person = friendOf(key) || { name: key };
+		var blocked = Boolean(person.blocked);
+		var muted = Boolean(person.muted);
 		return '<div class="px-chat">' +
+			'<div class="px-chat-tools">' +
+				'<span class="px-chat-who">' + ico('person', 11, '#8b95a2') + esc(key) + '</span>' + tagsFor(person) +
+				'<span class="px-row-actions">' +
+					'<button class="px-mini' + (muted ? ' ok' : '') + '" title="' + (muted ? 'Unmute' : 'Mute') + '" data-act="mute" data-name="' + esc(key) + '">' + ico('minus', 12) + '</button>' +
+					'<button class="px-mini' + (blocked ? ' ok' : '') + '" title="' + (blocked ? 'Unblock' : 'Block') + '" data-act="' + (blocked ? 'unblock' : 'block') + '" data-name="' + esc(key) + '">' + ico('lock', 12) + '</button>' +
+				'</span>' +
+			'</div>' +
 			'<div class="px-chat-log" id="px-chat-log">' +
 				(thread.messages.length
 					? thread.messages.map(function (m) {
@@ -324,7 +401,10 @@
 					}).join('')
 					: '<div class="px-empty">No messages yet with ' + esc(key) + '.</div>') +
 			'</div>' +
-			'<div class="px-composer"><input id="px-chat-input" placeholder="Message ' + esc(key) + '" autocomplete="off">' +
+			(state.emoji ? emojiPanel() : '') +
+			'<div class="px-composer">' +
+				'<button class="px-emoji-btn" data-act="emoji" title="Emoji">' + ico('smile', 14, '#f2b84b') + '</button>' +
+				'<input id="px-chat-input" placeholder="' + (blocked ? 'Blocked' : 'Message ' + esc(key)) + '"' + (blocked ? ' disabled' : '') + ' autocomplete="off">' +
 				'<button class="px-send" data-act="send">' + ico('send', 12, '#1a1305') + '</button></div>' +
 		'</div>';
 	}
@@ -348,7 +428,7 @@
 			'<aside class="px-drawer" role="dialog" aria-label="Friends and messages">' +
 				'<header class="px-d-head">' +
 					(state.mode === 'chat'
-						? '<button class="px-d-btn" data-act="back" title="Back">' + window.PretzelPixels.svg('x', 12, '#a7b0bc') + '</button>'
+						? '<button class="px-d-btn" data-act="back" title="Back">' + window.PretzelPixels.svg('back', 13, '#a7b0bc') + '</button>'
 						: '<span style="color:#f2b84b">' + ico(state.mode === 'messages' ? 'chat' : 'friends', 22) + '</span>') +
 					'<span class="px-d-title">' +
 						'<span class="px-d-title-text">' + esc(title) + '</span>' +
@@ -492,15 +572,28 @@
 	}
 
 	function openThread(name) {
+		if (flagOf(name, 'blocked')) {
+			toast(name + ' is blocked - unblock them first', true);
+			return;
+		}
 		state.mode = 'chat';
 		state.thread = name;
+		state.emoji = false;
 		render();
+	}
+
+	function insertEmoji(name) {
+		var input = document.getElementById('px-chat-input');
+		if (!input || input.disabled) return;
+		input.value = input.value + ':' + name + ':';
+		input.focus();
 	}
 
 	function send() {
 		var input = document.getElementById('px-chat-input');
 		var text = (input ? input.value : '').trim();
 		if (!text || !state.thread) return;
+		if (flagOf(state.thread, 'blocked')) { toast('Unblock ' + state.thread + ' to send messages', true); return; }
 		var map = threads();
 		var key = state.thread;
 		if (!map[key]) map[key] = { messages: [] };
@@ -536,6 +629,28 @@
 			}
 			if (act === 'accept') { accept(name); return; }
 			if (act === 'remove') { remove(name); return; }
+			if (act === 'mute') {
+				var muting = !flagOf(name, 'muted');
+				setFlag(name, 'muted', muting);
+				toast(name + (muting ? ' muted' : ' unmuted'));
+				render();
+				return;
+			}
+			if (act === 'block') {
+				setFlag(name, 'blocked', true);
+				toast(name + ' blocked');
+				if (state.mode === 'chat') { state.mode = 'friends'; state.thread = null; }
+				render();
+				return;
+			}
+			if (act === 'unblock') {
+				setFlag(name, 'blocked', false);
+				toast(name + ' unblocked');
+				render();
+				return;
+			}
+			if (act === 'emoji') { state.emoji = !state.emoji; render(); return; }
+			if (act === 'emoji-add') { insertEmoji(el.getAttribute('data-emoji')); return; }
 			if (act === 'dismiss') {
 				saveAccount(function (acc) { acc.requests = (acc.requests || []).filter(function (f) { return f.name !== name; }); });
 				render();
@@ -591,6 +706,7 @@
 	}
 
 	function boot() {
+		cleanLegacy();
 		style();
 		ensureRoot();
 		wire();
@@ -599,5 +715,12 @@
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
 	else boot();
 
-	window.PretzelMessages = { open: open, close: close };
+	window.PretzelMessages = {
+		open: open,
+		close: close,
+		chat: function (name) {
+			open('friends');
+			openThread(name);
+		}
+	};
 })();

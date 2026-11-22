@@ -123,3 +123,22 @@ button, .btn, .pill, .tagpill, .chip, .rail-btn, .pm-tab, .pm-add,
 .news-card, .server-card { padding: 10px; }
 .welcome-row h1 { font-size: 15px; }
 .announce { font-size: 10px; padding: 6px 10px; }
+
+/* --------------------------------------------------------------- breathing */
+
+/* A little more room between things, and a smaller account chip. */
+.topbar { padding: 8px 12px; }
+.rail { padding: 12px 0; }
+.rail { display: flex; flex-direction: column; gap: 4px; }
+.view { padding: 14px 16px 22px; }
+.page-head { margin-bottom: 12px; }
+.pm-grid { gap: 10px; }
+.news-card, .server-card, .friends-panel, .premium, .version-card, .server-strip { padding: 12px; }
+.card { padding: 12px; }
+
+.account { padding: 2px 7px 2px 3px; gap: 6px; }
+.account .head-24 { width: 16px; height: 16px; }
+.account-text { font-size: 8px; letter-spacing: .02em; }
+.owner-chip { font-size: 7px; padding: 1px 4px; }
+.icon-btn { width: 24px; height: 24px; }
+.pill { padding: 3px 7px; }

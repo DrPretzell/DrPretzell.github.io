@@ -55,7 +55,6 @@ const NAV = [
 	{ id: 'servers', label: 'Servers', icon: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.2 2.2 3.2 5 3.2 8S14.2 17.8 12 20c-2.2-2.2-3.2-5-3.2-8S9.8 6.2 12 4Z"/>' },
 	{ id: 'mods', label: 'Mods', icon: '<path d="M12 3.4 19.4 7.7v8.6L12 20.6 4.6 16.3V7.7Z"/><path d="M4.6 7.7 12 12l7.4-4.3M12 12v8.6"/>' },
 	{ id: 'friends', label: 'Friends', icon: '<circle cx="9.2" cy="8.6" r="3.1"/><path d="M3.6 19.4c.5-3 2.8-4.7 5.6-4.7s5.1 1.7 5.6 4.7"/><path d="M16.4 6.4a3 3 0 0 1 0 5.6M18 15.2c1.6.6 2.6 2.1 2.9 4.2"/>' },
-	{ id: 'cosmetics', label: 'Cosmetics', icon: '<path d="M9 4.5 5.2 8.3l1.9 1.9 1-1v9.3h3.8v-9.3l1 1 1.9-1.9L11 4.5a1.4 1.4 0 0 0-2 0Z"/>' },
 	{ id: 'store', label: 'Store', icon: '<circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/><path d="M3.5 4.5h2.2l2.4 10.1h10.7l2-7.6H6.4"/>' },
 ];
 
@@ -425,12 +424,11 @@ const RAIL_PIXELS = {
 	servers: 'globe',
 	mods: 'cube',
 	friends: 'people',
-	cosmetics: 'shirt',
 	store: 'cart',
 };
 
 function renderRail() {
-	const installed = installedList().length;
+	const installed = window.PretzelModStorage ? window.PretzelModStorage.list().length : 0;
 	let html = '<div class="rail-brand"><img src="/pretzel-logo.png" alt="Pretzel"></div>';
 	for (const item of NAV) {
 		const active = state.view === item.id ? ' active' : '';
@@ -477,16 +475,12 @@ function renderView() {
 		servers: serversView,
 		mods: modsView,
 		friends: friendsView,
-		cosmetics: function () { return '<div id="pretzel-cosmetics-root"></div>'; },
 		store: storeView,
 	};
 	document.getElementById('view').innerHTML = (map[state.view] || launchpadView)();
 	if (state.view === 'servers') watchServerVideos();
 	if (state.view === 'mods' && window.PretzelMods) {
 		window.PretzelMods.mount(document.getElementById('pretzel-mods-root'));
-	}
-	if (state.view === 'cosmetics' && window.PretzelCosmetics) {
-		window.PretzelCosmetics.mount(document.getElementById('pretzel-cosmetics-root'));
 	}
 }
 
@@ -688,10 +682,10 @@ function premiumCard() {
 	'<section class="ads-bar">' +
 		'<div class="ads-row">' +
 			'<div class="premium-logo"><img src="/pretzel-logo.png" alt=""><span class="premium-plus">+</span></div>' +
-			'<div><h4>Remove ads with Pretzel Premium</h4><div class="sub">Cosmetics before release</div></div>' +
+			'<div><h4>Remove ads with Pretzel Premium</h4><div class="sub">Extras before release</div></div>' +
 			'<button class="subscribe" data-action="premium">Subscribe</button>' +
 		'</div>' +
-		'<div class="premium-box"><span>Access to cosmetics before release &mdash; 1 to 2 months early</span>' +
+		'<div class="premium-box"><span>Access to extras before release &mdash; 1 to 2 months early</span>' +
 			'<span class="soon">Coming soon</span></div>' +
 	'</section>';
 }
@@ -1034,11 +1028,11 @@ function friendsView() {
 
 function storeView() {
 	return '' +
-	'<div class="page-head"><div><h1>Store</h1><p>Cosmetics, capes and ranks</p></div></div>' +
+	'<div class="page-head"><div><h1>Store</h1><p>Ranks and extras</p></div></div>' +
 	'<div class="store-hero">' +
 		'<img src="/pretzel-logo.png" alt="">' +
 		'<h2>Store coming soon</h2>' +
-		'<p>Capes, wings and cosmetics will be here. Pretzel Premium unlocks them one to two months early.</p>' +
+		'<p>Ranks and extras will be here. Pretzel Premium unlocks them one to two months early.</p>' +
 		'<span class="soon">Coming soon</span>' +
 	'</div>';
 }
@@ -1338,7 +1332,7 @@ document.getElementById('accountChip').addEventListener('click', () => {
 });
 
 document.getElementById('premiumBtn').addEventListener('click', () => {
-	toast('Pretzel Premium is coming soon - early cosmetics, 1 to 2 months before release.');
+	toast('Pretzel Premium is coming soon - early extras, 1 to 2 months before release.');
 });
 
 document.addEventListener('submit', async (event) => {

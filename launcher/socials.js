@@ -173,7 +173,12 @@
 			}
 			var tileEl = event.target.closest('[data-tile]');
 			if (tileEl) {
-				openId = tileEl.getAttribute('data-tile');
+				// Clicking inside the open form must not re-render, or the field loses
+				// focus and whatever was typed before Save disappears.
+				var tileId = tileEl.getAttribute('data-tile');
+				if (openId === tileId && event.target.closest('.px-form')) return;
+				if (openId === tileId) return;
+				openId = tileId;
 				render();
 				return;
 			}

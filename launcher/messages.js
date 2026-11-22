@@ -68,9 +68,61 @@
 		return list[index];
 	}
 
+	var AI_NAME = 'TestBuddy (Ai)';
+	var AI_HIDDEN = 'pretzel.ai.hidden.v1';
+
+	/**
+	 * TestBuddy is Pretzel's own assistant, not a real account: it answers from a
+	 * fixed set of replies about the client, so it works with no backend and never
+	 * pretends a person is typing.
+	 */
+	function aiReply(text) {
+		var t = String(text || '').toLowerCase();
+		if (!t.trim()) return 'Say something and I will answer.';
+		if (/\b(hi|hey|hello|yo|sup)\b/.test(t)) {
+			return 'Hey! I am TestBuddy (Ai), the Pretzel helper. Ask me about mods, servers, joining a world, or your account.';
+		}
+		if (/mod/.test(t)) {
+			return 'Mods live on the Mods page. Pick the 1.21.11 facet, install, and it is stored on your account. A real Java jar cannot run in a browser - the client itself is Java compiled to JavaScript - so only mods built into this client (Pretzel Essentials) actually run in game.';
+		}
+		if (/join|connect|ip|server/.test(t)) {
+			return 'Open Servers, press Join Server, and the client boots straight into that address. Custom addresses you add stay in your server list.';
+		}
+		if (/single|world|offline/.test(t)) {
+			return 'Singleplayer runs the integrated server inside the tab. First load takes a while because it generates spawn chunks.';
+		}
+		if (/friend|chat|message/.test(t)) {
+			return 'Friends and chat are in this drawer: add a username, accept requests, then open a thread. Mute and block sit on each friend.';
+		}
+		if (/account|skin|social|link/.test(t)) {
+			return 'Your account chip is top right. Link Socials (the chain button) stores your Discord, X and YouTube handles on the account.';
+		}
+		if (/hub|overlay|menu|shift/.test(t)) {
+			return 'Right Shift opens the in-game hub: Build & Mods, Friends & Chat and Emotes. Escape closes it.';
+		}
+		if (/thank/.test(t)) return 'Anytime. Ping me whenever something looks broken.';
+		if (/who|what are you|are you (a )?(real|human|bot)/.test(t)) {
+			return 'I am TestBuddy (Ai) - a helper built into Pretzel Client, not a player. I answer from what this client can do.';
+		}
+		return 'I only know Pretzel Client things: mods, servers, singleplayer, friends, account and the hub. Try one of those.';
+	}
+
+	function aiVisible() {
+		return localStorage.getItem(AI_HIDDEN) !== '1';
+	}
+
 	function friends() {
 		var acc = account();
-		return acc && Array.isArray(acc.friends) ? acc.friends : [];
+		var list = (acc && Array.isArray(acc.friends) ? acc.friends : []).filter(function (f) {
+			// older builds seeded a plain "TestBuddy" placeholder friend
+			return String(f.name).toLowerCase() !== 'testbuddy';
+		});
+		if (aiVisible() && !list.some(function (f) {
+			return String(f.name).toLowerCase() === AI_NAME.toLowerCase();
+		})) {
+			list = list.concat([{ name: AI_NAME, state: 'online', ai: true }]);
+		}
+		return list;
 	}
 
 	function requests() {
@@ -609,7 +661,11 @@
 				await syncRemote();
 			} else {
 				saveAccount(function (acc) {
-					acc.friends = (acc.friends || []).filter(function (f) { return f.name !== name; });
+					if (String(name).toLowerCase() === AI_NAME.toLowerCase()) {
+						localStorage.setItem(AI_HIDDEN, '1');
+					} else {
+						acc.friends = (acc.friends || []).filter(function (f) { return f.name !== name; });
+					}
 				});
 			}
 			toast(name + ' removed');
@@ -655,6 +711,17 @@
 		map[key].messages.push({ from: 'me', text: text, at: Date.now() });
 		saveThreads(map);
 		render();
+		var person = friendOf(key);
+		if (person && person.ai) {
+			var reply = aiReply(text);
+			setTimeout(function () {
+				var fresh = threads();
+				if (!fresh[key]) fresh[key] = { messages: [] };
+				fresh[key].messages.push({ from: 'them', text: reply, at: Date.now() });
+				saveThreads(fresh);
+				if (state.mode === 'chat' && state.thread === key) render();
+			}, 550);
+		}
 	}
 
 	function wire() {

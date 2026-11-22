@@ -558,7 +558,12 @@ function addServerModalBody() {
 		'<div class="field"><label for="addServerName">Server name</label>' +
 			'<input class="input" id="addServerName" name="addServerName" maxlength="48" placeholder="My Server"></div>' +
 		'<div class="field"><label for="addServerAddress">Server address</label>' +
-			'<input class="input" id="addServerAddress" name="addServerAddress" maxlength="128" placeholder="play.example.net"></div>' +
+			'<div style="display:flex;align-items:center;gap:8px">' +
+				'<img src="/assets/logos/app-icon.webp" alt="Pretzel Client" ' +
+					'style="width:26px;height:26px;border-radius:5px;image-rendering:pixelated;flex:0 0 auto">' +
+				'<input class="input" id="addServerAddress" name="addServerAddress" maxlength="128" placeholder="play.example.net">' +
+			'</div>' +
+			'<span style="font-size:11px;opacity:.6">Pretzel Client connects to this address in the browser.</span></div>' +
 		'<div class="field"><label for="addServerDesc">Description</label>' +
 			'<input class="input" id="addServerDesc" name="addServerDesc" maxlength="180" placeholder="Optional description"></div>' +
 		(state.authError ? '<p class="form-error">' + esc(state.authError) + '</p>' : '') +
@@ -773,19 +778,10 @@ function serverCard(server) {
 			'<div class="server-tags">' + tags + '</div>' +
 			'<div class="server-actions">' +
 				'<button class="btn join" data-action="join:' + esc(server.id) + '">Join Server</button>' +
-				(isSaved(server)
-					? '<button class="btn copy saved" disabled>In Server List</button>'
-					: '<button class="btn copy" data-action="save-server:' + esc(server.id) + '">Add to Server List</button>') +
 				'<button class="btn copy" data-action="copy:' + esc(server.id) + '">Copy IP</button>' +
 			'</div>' +
 		'</div>' +
 	'</article>';
-}
-
-function isSaved(server) {
-	const manual = read('pretzel.manualServers.v1', []);
-	const address = String(server.address || '').toLowerCase();
-	return Array.isArray(manual) && manual.some((m) => String(m.address || '').toLowerCase() === address);
 }
 
 function filteredServers() {
@@ -1109,27 +1105,6 @@ document.addEventListener('click', async (event) => {
 		renderView();
 		const view = document.getElementById('view');
 		if (view) view.scrollTo({ top: 0, behavior: 'smooth' });
-		return;
-	}
-	if (action.startsWith('save-server:')) {
-		const server = findServer(action.slice(12));
-		if (!server || !server.address || isSaved(server)) return;
-		const manual = read('pretzel.manualServers.v1', []);
-		const list = Array.isArray(manual) ? manual : [];
-		list.push({
-			id: 'manual-' + Date.now(),
-			name: server.name,
-			address: server.address,
-			description: server.description || '',
-			tags: server.tags || [],
-			players: server.players || 0,
-			custom: true,
-		});
-		write('pretzel.manualServers.v1', list);
-		const saved = list[list.length - 1];
-		state.servers = (state.servers || []).concat([saved]);
-		toast(server.name + ' added to your server list', 'good');
-		renderView();
 		return;
 	}
 	if (action.startsWith('server:')) {

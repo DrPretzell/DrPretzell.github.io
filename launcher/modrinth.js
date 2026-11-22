@@ -306,7 +306,7 @@
 			toast((title || project.title) + ' installed to your account storage');
 			state.installing[projectId] = '';
 			if (!entry.loadable) {
-				toast('Stored as a Java file - the browser runtime cannot execute it', true);
+				toast('Saved to your account - Java mods only run when they are built into the client (Pretzel Essentials)', true);
 			}
 			if (state.mode === 'mine') await refreshUpdates();
 		} catch (error) {
@@ -480,7 +480,8 @@
 				(bodyText ? '<h4>ABOUT</h4><p>' + esc(bodyText.slice(0, 900)) + (bodyText.length > 900 ? '\u2026' : '') + '</p>' : '') +
 				(state.installError ? '<p class="pm-note" style="border-color:#5a2a2a;color:#ffb4b4">' + esc(state.installError) + '</p>' : '') +
 				'<p class="pm-note">Installing stores the real file in this account\'s storage and registers it with the client. ' +
-					'A Java jar cannot be executed by the browser runtime, so it is kept and linked rather than run.</p>' +
+					'The client is Java compiled to JavaScript ahead of time, so a downloaded jar can be kept, verified and updated, ' +
+					'but only mods built into the client (Pretzel Essentials) run in game.</p>' +
 				'<p class="pm-note">Source: api.modrinth.com/v2 \u00b7 project ' + esc(p.id) + '</p>' +
 			'</div>' +
 		'</div></div>';

@@ -214,6 +214,19 @@
 			'.px-d-foot button:hover{border-color:#8a6a22}' +
 			'.px-rail-friends{cursor:pointer}' +
 			'.px-tag{display:inline-block;margin-left:5px;padding:1px 4px;border:1px solid #3a414d;color:#8b95a2;font-family:"Pretzel Pixel",monospace;font-size:6.5px;letter-spacing:.04em;vertical-align:1px}' +
+			'.px-add{display:flex;gap:5px;margin-top:6px;align-items:stretch}' +
+			'.px-add input{flex:1;min-width:0;background:#0e1116;border:2px solid #242a33;color:#eef2f7;font:inherit;font-size:10.5px;padding:7px 8px;outline:none}' +
+			'.px-add input:focus{border-color:#8a6a22}' +
+			'.px-add .px-send{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}' +
+			'.px-profile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 14px}' +
+			'.px-profile-skin{width:110px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 8px 14px rgba(0,0,0,.6))}' +
+			'.px-profile-name{display:flex;align-items:center;font-family:"Pretzel Pixel",monospace;font-size:11px;color:#f5f7fa}' +
+			'.px-profile-state{font-family:"Pretzel Pixel",monospace;font-size:8px;color:#7d8794;letter-spacing:.08em}' +
+			'.px-profile-state.on{color:#82c99b}' +
+			'.px-profile-acts{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px}' +
+			'.px-set-mini{background:#191d23;border:2px solid #262b34;color:#c3ccd8;font-family:"Pretzel Pixel",monospace;font-size:7.5px;padding:7px 9px;cursor:pointer}' +
+			'.px-set-mini:hover{border-color:#3c434e;color:#fff}' +
+			'.px-set-mini.on{border-color:#8a6a22;background:#241d10;color:#f2c66a}' +
 			'.px-tag.bad{border-color:#5a2a2a;color:#ff9d9d}' +
 			'.px-row.blocked{opacity:.62}' +
 			'.px-chat-tools{display:flex;align-items:center;gap:6px;padding:8px 11px;border-bottom:2px solid #22262e;background:#101318}' +
@@ -267,7 +280,7 @@
 				? pending.map(function (f) {
 					return friendRow(f, '<span class="px-row-actions">' +
 						'<button class="px-mini ok" title="Accept" data-act="accept" data-name="' + esc(f.name) + '">' + ico('check', 12) + '</button>' +
-						'<button class="px-mini" title="Dismiss" data-act="dismiss" data-name="' + esc(f.name) + '">' + ico('close', 12) + '</button></span>');
+						'<button class="px-mini" title="Reject" data-act="dismiss" data-name="' + esc(f.name) + '">' + ico('close', 12) + '</button></span>');
 				}).join('')
 				: '<div class="px-empty">No incoming requests.</div>';
 		} else if (tab === 'sent') {
@@ -282,10 +295,12 @@
 				? shown.map(function (f) {
 					if (f.blocked) {
 						return friendRow(f, '<span class="px-row-actions">' +
+							'<button class="px-mini" title="Profile" data-act="profile" data-name="' + esc(f.name) + '">' + ico('person', 12) + '</button>' +
 							'<button class="px-mini ok" title="Unblock" data-act="unblock" data-name="' + esc(f.name) + '">' + ico('check', 12) + '</button>' +
 							'<button class="px-mini" title="Remove" data-act="remove" data-name="' + esc(f.name) + '">' + ico('trash', 12) + '</button></span>');
 					}
 					return friendRow(f, '<span class="px-row-actions">' +
+						'<button class="px-mini" title="Profile" data-act="profile" data-name="' + esc(f.name) + '">' + ico('person', 12) + '</button>' +
 						'<button class="px-mini" title="Message" data-act="chat" data-name="' + esc(f.name) + '">' + ico('chat', 12) + '</button>' +
 						'<button class="px-mini' + (f.muted ? ' ok' : '') + '" title="' + (f.muted ? 'Unmute' : 'Mute') + '" data-act="mute" data-name="' + esc(f.name) + '">' + ico('minus', 12) + '</button>' +
 						'<button class="px-mini" title="Block" data-act="block" data-name="' + esc(f.name) + '">' + ico('lock', 12) + '</button>' +
@@ -297,6 +312,10 @@
 		return '' +
 			'<div class="px-search">' + ico('search', 12, '#7d8794') +
 				'<input id="px-friend-q" placeholder="Search friends" value="' + esc(state.query) + '" autocomplete="off">' +
+			'</div>' +
+			'<div class="px-add">' +
+				'<input id="px-friend-add" placeholder="Add friend by username" autocomplete="off">' +
+				'<button class="px-send" data-act="request">' + ico('plus', 11, '#1a1305') + ' ADD FRIEND</button>' +
 			'</div>' +
 			(state.error ? '<div class="px-hint" style="color:#ff8a8a">' + esc(state.error) + '</div>' : '') +
 			'<p class="px-hint">FRIENDS SEE WHEN YOU\'RE ONLINE AND CAN MESSAGE YOU</p>' +
@@ -409,7 +428,31 @@
 		'</div>';
 	}
 
+	function profileBody() {
+		var person = friendOf(state.profile) || { name: state.profile };
+		var saved = (threads()[state.profile] || { messages: [] }).messages.length;
+		var blocked = Boolean(person.blocked);
+		var muted = Boolean(person.muted);
+		return '<div class="px-profile">' +
+			'<img class="px-profile-skin" src="https://mc-heads.net/body/' + encodeURIComponent(person.name) + '/140" alt=""' +
+				' onerror="this.onerror=null;this.remove()">' +
+			'<div class="px-profile-name">' + esc(person.name) + tagsFor(person) + '</div>' +
+			'<div class="px-profile-state' + (person.state === 'online' ? ' on' : '') + '">' +
+				(person.state === 'online' ? 'ONLINE' : 'OFFLINE') + '</div>' +
+			'<div class="px-hint">' + saved + ' MESSAGES SAVED WITH THIS FRIEND</div>' +
+			'<div class="px-profile-acts">' +
+				(blocked ? '' : '<button class="px-send" data-act="chat" data-name="' + esc(person.name) + '">MESSAGE</button>') +
+				'<button class="px-set-mini' + (muted ? ' on' : '') + '" data-act="mute" data-name="' + esc(person.name) + '">' +
+					(muted ? 'UNMUTE' : 'MUTE') + '</button>' +
+				'<button class="px-set-mini' + (blocked ? ' on' : '') + '" data-act="' + (blocked ? 'unblock' : 'block') +
+					'" data-name="' + esc(person.name) + '">' + (blocked ? 'UNBLOCK' : 'BLOCK') + '</button>' +
+				'<button class="px-set-mini" data-act="remove" data-name="' + esc(person.name) + '">REMOVE FRIEND</button>' +
+			'</div>' +
+		'</div>';
+	}
+
 	function body() {
+		if (state.mode === 'profile' && state.profile) return profileBody();
 		if (state.mode === 'chat' && state.thread) return chatBody();
 		return state.mode === 'messages' ? messagesBody() : friendsBody();
 	}
@@ -419,7 +462,9 @@
 		if (!root) return;
 		if (!state.open) { root.innerHTML = ''; return; }
 		var acc = account();
-		var title = state.mode === 'chat' ? state.thread : (state.mode === 'messages' ? 'Messages' : 'Friends');
+		var title = state.mode === 'chat' ? state.thread
+			: (state.mode === 'profile' ? state.profile
+			: (state.mode === 'messages' ? 'Messages' : 'Friends'));
 		var sub = state.mode === 'chat'
 			? (friends().find(function (f) { return String(f.name).toLowerCase() === String(state.thread).toLowerCase(); }) || {}).state || 'offline'
 			: (acc ? friends().length + ' FRIENDS \u00b7 ' + friends().filter(function (f) { return f.state === 'online'; }).length + ' ONLINE' : 'SIGN IN TO START');
@@ -427,7 +472,7 @@
 			'<div class="px-drawer-scrim" data-act="close"></div>' +
 			'<aside class="px-drawer" role="dialog" aria-label="Friends and messages">' +
 				'<header class="px-d-head">' +
-					(state.mode === 'chat'
+					(state.mode === 'chat' || state.mode === 'profile'
 						? '<button class="px-d-btn" data-act="back" title="Back">' + window.PretzelPixels.svg('back', 13, '#a7b0bc') + '</button>'
 						: (state.mode === 'messages'
 							? '<img src="/assets/logos/chat-icon.webp" alt="" width="24" height="24" style="display:block;image-rendering:pixelated">'
@@ -521,7 +566,8 @@
 			} else {
 				saveAccount(function (acc) {
 					acc.sent = acc.sent || [];
-					acc.sent.push({ name: name, state: 'offline', skin: null, at: Date.now() });
+					var already = acc.sent.some(function (f) { return String(f.name).toLowerCase() === name.toLowerCase(); });
+					if (!already) acc.sent.push({ name: name, state: 'offline', skin: null, at: Date.now() });
 				});
 				state.tab = 'sent';
 				toast('Request saved for ' + name);
@@ -584,6 +630,13 @@
 		render();
 	}
 
+	function openProfile(name) {
+		state.mode = 'profile';
+		state.profile = name;
+		state.thread = null;
+		render();
+	}
+
 	function insertEmoji(name) {
 		var input = document.getElementById('px-chat-input');
 		if (!input || input.disabled) return;
@@ -622,7 +675,7 @@
 			var name = el.getAttribute('data-name');
 			if (act === 'close') { close(); return; }
 			if (act === 'mode') { state.mode = el.getAttribute('data-mode'); state.thread = null; render(); return; }
-			if (act === 'back') { state.mode = 'messages'; state.thread = null; render(); return; }
+			if (act === 'back') { state.mode = 'friends'; state.thread = null; state.profile = null; render(); return; }
 			if (act === 'tab') { state.tab = el.getAttribute('data-tab'); render(); return; }
 			if (act === 'request') {
 				var add = document.getElementById('px-friend-add');
@@ -664,6 +717,7 @@
 				return;
 			}
 			if (act === 'chat' || act === 'openthread') { openThread(name); return; }
+			if (act === 'profile') { openProfile(name); return; }
 			if (act === 'send') { send(); return; }
 			if (act === 'openthread') { openThread(name); return; }
 			if (act === 'newgroup') {

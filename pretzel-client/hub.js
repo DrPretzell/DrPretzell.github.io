@@ -7,7 +7,8 @@
 (function () {
 	'use strict';
 
-	var EMOTE_KEY = 'pretzel.cosmetics.v1';
+	var EMOTE_KEY = 'pretzel.emotes.v1';
+	var EMOTE_LEGACY = 'pretzel.cosmetics.v1';
 	var SESSION = 'pretzel.session.v1';
 	var ACCOUNTS = 'pretzel.accounts.v1';
 	var CHAT = 'pretzel.chat.v1';
@@ -86,7 +87,9 @@
 	}
 
 	function emoteStore() {
-		var all = read(EMOTE_KEY, {}) || {};
+		var all = read(EMOTE_KEY, null);
+		if (!all) all = read(EMOTE_LEGACY, {}) || {};
+		all = all || {};
 		var key = (accountName() || 'local').toLowerCase();
 		if (!all[key]) all[key] = { equipped: {}, emotes: [], owned: [] };
 		return { all: all, mine: all[key] };
@@ -121,9 +124,12 @@
 	function style() {
 		if (document.getElementById('pzh-style')) return;
 		var css =
-			'#pzh-root{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;' +
-				'background:rgba(4,4,6,.82);padding:3vmin;box-sizing:border-box;font-family:"PretzelPixel",ui-monospace,monospace}' +
-			'#pzh-root.on{display:flex}' +
+			'#pzh-root{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;' +
+				'background:rgba(4,4,6,.82);padding:3vmin;box-sizing:border-box;font-family:"PretzelPixel",ui-monospace,monospace;' +
+				'opacity:0;visibility:hidden;transition:opacity .13s linear,visibility .13s linear}' +
+			'#pzh-root.on{opacity:1;visibility:visible}' +
+			'.pzh-panel{transform:translateY(10px) scale(.985);transition:transform .16s steps(3, end)}' +
+			'#pzh-root.on .pzh-panel{transform:none}' +
 			'#pzh-root *{box-sizing:border-box}' +
 			'.pzh-panel{width:min(1060px,96vw);max-height:92vh;display:flex;flex-direction:column;background:#0b0b0d;' +
 				'border:2px solid #f2b84b;box-shadow:0 0 0 2px #000,0 18px 60px rgba(0,0,0,.8);image-rendering:pixelated}' +
@@ -277,17 +283,33 @@
 		return document.body.classList.contains('playing');
 	}
 
+	var lastFocus = null;
+
+	function focusables() {
+		var root = document.getElementById('pzh-root');
+		if (!root) return [];
+		return Array.prototype.slice.call(root.querySelectorAll('button, a[href], input'))
+			.filter(function (el) { return !el.disabled && el.offsetParent !== null; });
+	}
+
 	function open() {
 		var root = document.getElementById('pzh-root');
 		if (!root) return;
+		lastFocus = document.activeElement;
 		render();
 		root.classList.add('on');
 		if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+		var first = focusables()[0];
+		if (first) first.focus();
 	}
 
 	function close() {
 		var root = document.getElementById('pzh-root');
 		if (root) root.classList.remove('on');
+		if (lastFocus && lastFocus.focus) {
+			try { lastFocus.focus(); } catch (e) { /* element gone */ }
+		}
+		lastFocus = null;
 		var canvas = document.getElementById('gameCanvas');
 		if (canvas && isPlaying() && canvas.requestPointerLock) {
 			try { canvas.requestPointerLock(); } catch (e) { /* not allowed here */ }
@@ -369,29 +391,61 @@
 			}
 		});
 
-		// Right Shift is the hub key while a world or server is loaded. The event
-		// is consumed so the game does not read it as sneak at the same time.
-		window.addEventListener('keydown', function (event) {
-			if (event.code !== 'ShiftRight') return;
-			if (!isPlaying() && !root.classList.contains('on')) return;
-			event.preventDefault();
-			event.stopPropagation();
-			if (!event.repeat) toggle();
-		}, true);
+		function moveFocus(step) {
+			var list = focusables();
+			if (!list.length) return;
+			var index = list.indexOf(document.activeElement);
+			if (index < 0) index = step > 0 ? -1 : 0;
+			var next = (index + step + list.length) % list.length;
+			list[next].focus();
+		}
 
-		window.addEventListener('keyup', function (event) {
-			if (event.code !== 'ShiftRight') return;
-			if (!isPlaying() && !root.classList.contains('on')) return;
-			event.preventDefault();
-			event.stopPropagation();
-		}, true);
-
+		// Right Shift is the hub key while a world or server is loaded, and the
+		// event is consumed so the game does not read it as sneak. While the hub
+		// is open the game gets no keys at all, so the player never walks off.
 		window.addEventListener('keydown', function (event) {
-			if (event.key === 'Escape' && root.classList.contains('on')) {
+			var open = root.classList.contains('on');
+			if (event.code === 'ShiftRight' && (isPlaying() || open)) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (!event.repeat) toggle();
+				return;
+			}
+			if (!open) return;
+			if (event.key === 'Escape') {
 				event.preventDefault();
 				event.stopPropagation();
 				close();
+				return;
 			}
+			if (event.key === 'Tab') {
+				event.preventDefault();
+				event.stopPropagation();
+				moveFocus(event.shiftKey ? -1 : 1);
+				return;
+			}
+			if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+				event.preventDefault();
+				event.stopPropagation();
+				moveFocus(1);
+				return;
+			}
+			if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+				event.preventDefault();
+				event.stopPropagation();
+				moveFocus(-1);
+				return;
+			}
+			event.stopPropagation();
+		}, true);
+
+		window.addEventListener('keyup', function (event) {
+			if (event.code === 'ShiftRight' && (isPlaying() || root.classList.contains('on'))) {
+				event.preventDefault();
+				event.stopPropagation();
+				return;
+			}
+			if (root.classList.contains('on')) event.stopPropagation();
 		}, true);
 
 		window.PretzelHub = { open: open, close: close, toggle: toggle, emotes: EMOTES };

@@ -260,6 +260,101 @@
 		return list().reduce(function (sum, item) { return sum + (Number(item.size) || 0); }, 0);
 	}
 
+	// -------------------------------------------------------------- manifest
+
+	/**
+	 * The compatibility manifest: what this account has installed, in the shape
+	 * another Pretzel install can read back.
+	 */
+	function manifest() {
+		return {
+			schema: 'pretzel.mod-manifest.v1',
+			client: 'Pretzel Client',
+			eaglercraft: '1.21.11',
+			generatedAt: new Date().toISOString(),
+			account: account(),
+			mods: list().map(function (item) {
+				return {
+					id: item.id,
+					name: item.title,
+					version: item.version,
+					versionId: item.versionId,
+					supportedEaglercraft: item.gameVersions,
+					requirements: {
+						loaders: item.loaders,
+						loadable: item.loadable
+					},
+					kind: item.kind,
+					enabled: item.enabled !== false,
+					file: item.filename,
+					size: item.size,
+					sha1: item.sha1,
+					installedAt: item.at
+				};
+			})
+		};
+	}
+
+	function exportManifest() {
+		var text = JSON.stringify(manifest(), null, 2);
+		var blob = new Blob([text], { type: 'application/json' });
+		var url = URL.createObjectURL(blob);
+		var link = document.createElement('a');
+		link.href = url;
+		link.download = 'pretzel-mods-' + account() + '.json';
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+		return text;
+	}
+
+	/** Returns how many entries were added. Files are not re-downloaded. */
+	function importManifest(text) {
+		var parsed;
+		try { parsed = JSON.parse(text); } catch (e) { throw new Error('That file is not valid JSON.'); }
+		if (!parsed || parsed.schema !== 'pretzel.mod-manifest.v1' || !Array.isArray(parsed.mods)) {
+			throw new Error('That file is not a Pretzel mod manifest.');
+		}
+		var map = registry();
+		var acct = account();
+		var mine = Array.isArray(map[acct]) ? map[acct] : [];
+		var added = 0;
+		parsed.mods.forEach(function (mod) {
+			if (!mod || !mod.id) return;
+			var existing = mine.find(function (item) { return item.id === mod.id; });
+			if (existing) {
+				existing.enabled = mod.enabled !== false;
+				if (mod.version) existing.version = mod.version;
+				return;
+			}
+			mine.push({
+				id: String(mod.id),
+				slug: String(mod.id),
+				title: mod.name || String(mod.id),
+				icon: '',
+				version: mod.version || '',
+				versionId: mod.versionId || '',
+				filename: mod.file || '',
+				size: Number(mod.size) || 0,
+				sha1: mod.sha1 || '',
+				gameVersions: mod.supportedEaglercraft || ['1.21.11'],
+				loaders: (mod.requirements && mod.requirements.loaders) || mod.loaders || [],
+				kind: mod.kind || 'java-jar',
+				loadable: Boolean(mod.requirements ? mod.requirements.loadable : mod.loadable),
+				enabled: mod.enabled !== false,
+				key: '',
+				imported: true,
+				at: Date.now()
+			});
+			added++;
+		});
+		map[acct] = mine;
+		saveRegistry(map);
+		mirrorToAccount(mine);
+		return added;
+	}
+
 	/** Bytes for one stored file, so the client can hand them to a loader. */
 	function fetchFile(projectId) {
 		var entry = find(projectId);
@@ -277,6 +372,9 @@
 		find: find,
 		usage: usage,
 		file: fetchFile,
-		account: account
+		account: account,
+		manifest: manifest,
+		exportManifest: exportManifest,
+		importManifest: importManifest
 	};
 })();

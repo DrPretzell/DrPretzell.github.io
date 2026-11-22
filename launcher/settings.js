@@ -156,7 +156,6 @@
 				'<div class="px-set-sub">SIGNED IN</div>' +
 				(since(acc) ? '<div class="px-set-since">SINCE ' + since(acc) + '</div>' : '') +
 				'<button class="px-set-btn" data-set="profile">' + ico('shirt', 11) + ' Edit Profile</button>' +
-				'<button class="px-set-btn" data-set="cosmetics">' + ico('star', 11) + ' Cosmetics</button>' +
 				'<button class="px-set-btn danger" data-set="delete">' + ico('trash', 11) + ' Delete account</button>' +
 			'</div>' +
 			'<div class="px-set-right">' +
@@ -275,12 +274,7 @@
 				if (chipBtn) chipBtn.click();
 				return;
 			}
-			if (act === 'cosmetics') {
-				close();
-				var nav = document.querySelector('[data-action="nav:cosmetics"]');
-				if (nav) nav.click();
-				return;
-			}
+
 		});
 
 		document.addEventListener('keydown', function (event) {

@@ -2,8 +2,8 @@
 //
 // The launchpad works entirely on localStorage by default. When a Pretzel
 // backend answers /api/status (same origin, or an origin configured through
-// window.PRETZEL_API_BASE / localStorage "pretzel.apiBase"), accounts, friends
-// and cosmetics go through the server instead.
+// window.PRETZEL_API_BASE / localStorage "pretzel.apiBase"), accounts and
+// friends go through the server instead.
 (function () {
   'use strict';
 
@@ -105,12 +105,6 @@
     },
     removeFriend: function (username) {
       return request('/api/friends/' + encodeURIComponent(username), { method: 'DELETE' });
-    },
-    loadCosmetics: function () {
-      return request('/api/cosmetics');
-    },
-    saveCosmetics: function (owned, equipped) {
-      return request('/api/cosmetics', { method: 'PUT', body: { owned: owned || [], equipped: equipped || {} } });
     },
     signOut: function () {
       setToken('');

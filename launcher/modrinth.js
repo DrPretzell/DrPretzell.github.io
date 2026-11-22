@@ -14,8 +14,27 @@
 	var TIMEOUT = 12000;
 	var TTL = 5 * 60 * 1000;
 
+	// Browse filters. Modrinth has no pvp/minimap/hud/cosmetics category slugs, so
+	// those run as a text query; everything else is a real facet.
+	var CATEGORIES = [
+		{ id: 'all', label: 'ALL' },
+		{ id: 'performance', label: 'PERFORMANCE', facet: ['categories:optimization'] },
+		{ id: 'optimization', label: 'OPTIMIZATION', facet: ['categories:optimization'], index: 'downloads' },
+		{ id: 'pvp', label: 'PVP', query: 'pvp' },
+		{ id: 'minimap', label: 'MINIMAP', query: 'minimap' },
+		{ id: 'hud', label: 'HUD', query: 'hud' },
+		{ id: 'cosmetics', label: 'COSMETICS', facet: ['categories:decoration'] },
+		{ id: 'utility', label: 'UTILITY', facet: ['categories:utility'] },
+		{ id: 'adventure', label: 'ADVENTURE', facet: ['categories:adventure'] },
+		{ id: 'technology', label: 'TECHNOLOGY', facet: ['categories:technology'] },
+		{ id: 'resourcepacks', label: 'RESOURCE PACKS', type: 'resourcepack' },
+		{ id: 'shaders', label: 'SHADERS', type: 'shader' },
+		{ id: 'browser', label: 'BROWSER COMPATIBLE', query: 'eaglercraft' }
+	];
+
 	var state = {
 		query: '',
+		cat: 'all',
 		index: 'relevance',
 		page: 1,
 		total: 0,
@@ -138,6 +157,13 @@
 			'.pm-search{margin-left:auto;min-width:200px;padding:7px 10px;border:2px solid #292d35;background:#101317;color:#e8ecf1;font-size:10.5px;outline:none}' +
 			'.pm-search:focus{border-color:#8a6a22}' +
 			'.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}' +
+			'.pm-cats{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}' +
+			'.pm-cat{padding:5px 8px;border:2px solid #23272e;background:#11141a;color:#8f99a6;font-size:7.5px;letter-spacing:.04em;cursor:pointer}' +
+			'.pm-cat:hover{border-color:#3d434d;color:#eef1f5}' +
+			'.pm-cat.on{border-color:#8a6a22;background:#241d10;color:#f2c66a}' +
+			'.pm-links{display:flex;flex-wrap:wrap;gap:5px}' +
+			'.pm-link{border:2px solid #2f3540;background:#151920;color:#c9d2dd;font-size:8px;padding:5px 8px;text-decoration:none}' +
+			'.pm-link:hover{border-color:#8a6a22;color:#f2c66a}' +
 			'.pm-card{display:flex;flex-direction:column;border:2px solid #24272e;background:#14171c;padding:10px;cursor:pointer}' +
 			'.pm-card:hover{border-color:#3a3f49;background:#171b21}' +
 			'.pm-top{display:flex;align-items:center;gap:9px;min-width:0}' +
@@ -186,10 +212,18 @@
 
 	// ----------------------------------------------------------------- search
 
+	function activeCategory() {
+		return CATEGORIES.find(function (c) { return c.id === state.cat; }) || CATEGORIES[0];
+	}
+
 	function searchUrl() {
-		var facets = [['project_type:mod'], ['versions:' + GAME_VERSION]];
+		var cat = activeCategory();
+		var facets = [['project_type:' + (cat.type || 'mod')], ['versions:' + GAME_VERSION]];
+		if (cat.facet) facets = facets.concat([cat.facet]);
+		var query = state.query;
+		if (!query && cat.query) query = cat.query;
 		var params = [
-			'query=' + encodeURIComponent(state.query),
+			'query=' + encodeURIComponent(query),
 			'limit=' + PAGE,
 			'offset=' + (state.page - 1) * PAGE,
 			'index=' + encodeURIComponent(state.index),
@@ -230,6 +264,7 @@
 			render();
 			var versions = await cachedGet(API + '/project/' + encodeURIComponent(id) + '/version');
 			state.versions = versions || [];
+			resolveDependencies();
 		} catch (error) {
 			state.versionsError = error && error.message ? error.message : 'Could not load versions.';
 		} finally {
@@ -316,6 +351,14 @@
 			'" data-version="' + esc(versionId || '') + '">INSTALL</button>';
 	}
 
+	var JAVA_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader', 'rift'];
+
+	function loadersOf(project) {
+		return (project.loaders || project.categories || []).filter(function (l) {
+			return JAVA_LOADERS.indexOf(String(l).toLowerCase()) >= 0;
+		});
+	}
+
 	function card(hit) {
 		var id = hit.project_id || hit.slug;
 		var games = hit.versions || [];
@@ -331,6 +374,8 @@
 			'<p class="pm-desc">' + esc(hit.description) + '</p>' +
 			'<div class="pm-meta">' +
 				'<span class="pm-chip' + (hasThis ? ' ok' : '') + '">' + GAME_VERSION + '</span>' +
+				(loadersOf(hit).length ? '<span class="pm-chip">' + esc(loadersOf(hit).join('/')) + '</span>' : '') +
+				(loadersOf(hit).length ? '<span class="pm-chip">JAVA ONLY</span>' : '') +
 				(hit.follows ? '<span class="pm-chip">\u2665 ' + compact(hit.follows) + '</span>' : '') +
 			'</div>' +
 			'<div class="pm-row">' +
@@ -366,6 +411,50 @@
 		}).join('');
 	}
 
+	function linksHTML(p) {
+		var links = [
+			{ url: p.source_url, label: 'SOURCE' },
+			{ url: p.wiki_url, label: 'WIKI' },
+			{ url: p.issues_url, label: 'ISSUES' },
+			{ url: p.discord_url, label: 'DISCORD' },
+			{ url: 'https://modrinth.com/project/' + p.slug, label: 'MODRINTH' }
+		].filter(function (link) { return Boolean(link.url); });
+		return links.length
+			? '<div class="pm-links">' + links.map(function (link) {
+				return '<a class="pm-link" href="' + esc(link.url) + '" target="_blank" rel="noopener noreferrer">' + link.label + '</a>';
+			}).join('') + '</div>'
+			: '';
+	}
+
+	/** Fills in dependency project titles so the sheet shows names, not ids. */
+	function resolveDependencies() {
+		var version = forThisVersion(state.versions)[0];
+		if (!version) return;
+		var ids = (version.dependencies || []).filter(function (d) { return d.project_id; }).map(function (d) { return d.project_id; });
+		var names = {};
+		Promise.all(ids.map(function (depId) {
+			return cachedGet(API + '/project/' + encodeURIComponent(depId))
+				.then(function (project) { names[depId] = project.title || depId; })
+				.catch(function () { names[depId] = depId; });
+		})).then(function () {
+			state.depNames = names;
+			render();
+		});
+	}
+
+	function dependenciesHTML() {
+		var version = forThisVersion(state.versions)[0];
+		if (!version) return '';
+		var deps = (version.dependencies || []).filter(function (d) { return d.project_id; });
+		if (!deps.length) return '<h4>DEPENDENCIES</h4><p class="pm-note">This version declares no dependencies.</p>';
+		var names = state.depNames || {};
+		return '<h4>DEPENDENCIES</h4><div class="pm-links">' + deps.map(function (dep) {
+			return '<a class="pm-link" href="https://modrinth.com/project/' + esc(dep.project_id) +
+				'" target="_blank" rel="noopener noreferrer">' + esc(dep.dependency_type) + ' \u00b7 ' +
+				esc(names[dep.project_id] || dep.project_id) + '</a>';
+		}).join('') + '</div>';
+	}
+
 	function detailHTML() {
 		var p = state.detail;
 		var bodyText = String(p.body || '').replace(/[#*`>]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -386,6 +475,8 @@
 					'<span class="pm-chip">' + esc((p.loaders || []).filter(function (l) { return l !== 'minecraft'; }).join(' / ') || 'datapack') + '</span>' +
 					(entry ? '<span class="pm-chip ok">IN CLIENT ' + esc(entry.version) + '</span>' : '') + '</div>' +
 				'<h4>VERSIONS FOR ' + GAME_VERSION + '</h4>' + versionsHTML() +
+				(linksHTML(p) ? '<h4>PROJECT LINKS</h4>' + linksHTML(p) : '') +
+				dependenciesHTML() +
 				(bodyText ? '<h4>ABOUT</h4><p>' + esc(bodyText.slice(0, 900)) + (bodyText.length > 900 ? '\u2026' : '') + '</p>' : '') +
 				(state.installError ? '<p class="pm-note" style="border-color:#5a2a2a;color:#ffb4b4">' + esc(state.installError) + '</p>' : '') +
 				'<p class="pm-note">Installing stores the real file in this account\'s storage and registers it with the client. ' +
@@ -421,7 +512,14 @@
 					'<button class="pm-add ghost" data-mr="remove" data-id="' + esc(item.id) + '">REMOVE</button>' +
 				'</span>' +
 			'</div>';
-		}).join('') + '<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '.</p>';
+		}).join('') +
+			'<div class="pm-bar" style="margin-top:10px">' +
+				'<button class="pm-add ghost" data-mr="export">EXPORT MANIFEST</button>' +
+				'<button class="pm-add ghost" data-mr="import">IMPORT MANIFEST</button>' +
+				'<input id="pm-import" type="file" accept="application/json,.json" style="display:none">' +
+			'</div>' +
+			'<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '. ' +
+				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you install them again.</p>';
 	}
 
 	function bodyHTML() {
@@ -456,14 +554,17 @@
 				'<b>INSTALL</b> downloads the file into the signed-in account\'s own storage and links it to the client - ' +
 				'no manual downloads, no copies shared between accounts.</p>' +
 			'<div class="pm-bar">' +
-				['relevance', 'downloads', 'follows', 'newest'].map(function (index) {
-					var labels = { relevance: 'RELEVANCE', downloads: 'DOWNLOADS', follows: 'FOLLOWS', newest: 'NEWEST' };
+				['relevance', 'downloads', 'follows', 'newest', 'updated'].map(function (index) {
+					var labels = { relevance: 'RELEVANCE', downloads: 'DOWNLOADS', follows: 'FOLLOWS', newest: 'NEWEST', updated: 'UPDATED' };
 					return '<button class="pm-tab' + (state.index === index && state.mode === 'search' ? ' on' : '') +
 						'" data-mr="index" data-value="' + index + '">' + labels[index] + '</button>';
 				}).join('') +
 				'<button class="pm-tab' + (state.mode === 'mine' ? ' on' : '') + '" data-mr="own">MY MODS ' + count + '</button>' +
 				'<input class="pm-search" id="pm-search" type="search" placeholder="Search Modrinth ' + GAME_VERSION + ' mods\u2026" value="' + esc(state.query) + '">' +
 			'</div>' +
+			'<div class="pm-cats">' + CATEGORIES.map(function (cat) {
+				return '<button class="pm-cat' + (state.cat === cat.id ? ' on' : '') + '" data-mr="cat" data-value="' + cat.id + '">' + cat.label + '</button>';
+			}).join('') + '</div>' +
 			bodyHTML() +
 		'</div>' +
 		(state.detail ? detailHTML() : '') +
@@ -488,11 +589,34 @@
 			wire.timer = setTimeout(runSearch, 350);
 		});
 
+		document.addEventListener('change', function (event) {
+			if (event.target.id !== 'pm-import') return;
+			var file = event.target.files && event.target.files[0];
+			if (!file || !storage()) return;
+			file.text().then(function (text) {
+				var added = storage().importManifest(text);
+				toast(added ? added + ' mods imported into ' + storage().account() : 'Manifest merged - nothing new');
+			}).catch(function (error) {
+				toast(error && error.message ? error.message : 'Import failed', true);
+			}).finally(function () {
+				event.target.value = '';
+				render();
+			});
+		});
+
 		document.addEventListener('click', function (event) {
 			var el = event.target.closest('[data-mr]');
 			if (!el) return;
 			var act = el.getAttribute('data-mr');
 			if (act === 'index') { state.index = el.getAttribute('data-value'); state.page = 1; runSearch(); return; }
+			if (act === 'cat') {
+				state.cat = el.getAttribute('data-value');
+				state.page = 1;
+				var picked = activeCategory();
+				if (picked.index) state.index = picked.index;
+				runSearch();
+				return;
+			}
 			if (act === 'page') {
 				var page = Number(el.getAttribute('data-value'));
 				if (!page || page < 1) return;
@@ -528,6 +652,17 @@
 					toast('Removed from ' + storage().account() + ' storage');
 					render();
 				});
+				return;
+			}
+			if (act === 'export') {
+				if (!storage()) return;
+				storage().exportManifest();
+				toast('Manifest exported for ' + storage().account());
+				return;
+			}
+			if (act === 'import') {
+				var pick = document.getElementById('pm-import');
+				if (pick) pick.click();
 				return;
 			}
 			if (act === 'retry') { runSearch(); return; }

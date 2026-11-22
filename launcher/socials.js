@@ -50,6 +50,19 @@
 		return Object.keys(mine()).length;
 	}
 
+	// Real app logos for the platforms that have one; the rest stay pixel emoji.
+	var LOGOS = {
+		x: '/assets/logos/x-icon.webp',
+		youtube: '/assets/logos/youtube-icon.webp'
+	};
+
+	function mark(platform, size) {
+		var src = LOGOS[platform.id];
+		if (!src) return ico(platform.id, size);
+		return '<img src="' + src + '" alt="" width="' + size + '" height="' + size +
+			'" style="display:block;image-rendering:pixelated">';
+	}
+
 	function style() {
 		if (document.getElementById('px-socials-style')) return;
 		var css = '' +
@@ -93,7 +106,7 @@
 		if (on) {
 			badges = '<div class="px-tile-badges">' +
 				PLATFORMS.filter(function (p) { return mine()[p.id]; }).map(function (p) {
-					return '<span title="' + p.name + '">' + ico(p.id, 12) + '</span>';
+					return '<span title="' + p.name + '">' + mark(p, 12) + '</span>';
 				}).join('') + '</div>';
 		}
 		var form = openId === it.id
@@ -101,7 +114,7 @@
 				'<button data-save="' + it.id + '">Save</button><button class="ghost" data-cancel="1">Cancel</button></div>'
 			: '';
 		return '<div class="px-tile' + (on ? ' on' : '') + '" data-tile="' + it.id + '">' +
-			'<span class="px-tile-ico">' + ico(it.id, 30) + '</span>' +
+			'<span class="px-tile-ico">' + mark(it, 32) + '</span>' +
 			'<span class="px-tile-name">' + it.name + '</span>' +
 			'<span class="px-tile-state">' + (on ? String(entry.handle).replace(/</g, '&lt;') : 'Not Linked') + '</span>' +
 			badges + form +

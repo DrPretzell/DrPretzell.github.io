@@ -429,7 +429,9 @@
 				'<header class="px-d-head">' +
 					(state.mode === 'chat'
 						? '<button class="px-d-btn" data-act="back" title="Back">' + window.PretzelPixels.svg('back', 13, '#a7b0bc') + '</button>'
-						: '<span style="color:#f2b84b">' + ico(state.mode === 'messages' ? 'chat' : 'friends', 22) + '</span>') +
+						: (state.mode === 'messages'
+							? '<img src="/assets/logos/chat-icon.webp" alt="" width="24" height="24" style="display:block;image-rendering:pixelated">'
+							: '<span style="color:#f2b84b">' + ico('friends', 22) + '</span>')) +
 					'<span class="px-d-title">' +
 						'<span class="px-d-title-text">' + esc(title) + '</span>' +
 						'<small>' + esc(String(sub).toUpperCase()) + '</small>' +

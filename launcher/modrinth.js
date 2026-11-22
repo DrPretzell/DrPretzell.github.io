@@ -13,6 +13,8 @@
 	var PAGE = 20;
 	var TIMEOUT = 12000;
 	var TTL = 5 * 60 * 1000;
+	// Research catalog generated from Modrinth by tools/fetch-mods.ps1.
+	var CATALOG = window.PRETZEL_MOD_CATALOG || null;
 
 	// Browse filters. Modrinth has no pvp/minimap/hud/cosmetics category slugs, so
 	// those run as a text query; everything else is a real facet.
@@ -46,6 +48,8 @@
 		versionsLoading: false,
 		versionsError: '',
 		mode: 'search',
+		catStatus: 'all',
+		catQuery: '',
 		installing: {},
 		installError: ''
 	};
@@ -203,7 +207,15 @@
 			'.pm-own{display:flex;align-items:center;gap:9px;padding:9px;border:2px solid #24272e;background:#14171c;margin-bottom:6px}' +
 			'.pm-own.off{opacity:.55}' +
 			'.pm-own .pm-names{flex:1}' +
-			'.pm-own .acts{display:flex;gap:5px}';
+			'.pm-own .acts{display:flex;gap:5px}' +
+			'.pm-sum{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}' +
+			'.pm-catchip{border:1px solid #2a2f38;padding:2px 5px;font-size:8px;font-family:"Pretzel Pixel",monospace;color:#98a2ae}' +
+			'.pm-catchip.ported{border-color:#33513d;color:#8bd6a4}' +
+			'.pm-catchip.planned{border-color:#8a6a22;color:#f2c66a}' +
+			'.pm-catchip.no{border-color:#5a2a2a;color:#e2a3a3}' +
+			'.pm-catnote{margin:7px 0 0;font-size:9.5px;line-height:1.55;color:#7f8894;min-height:44px}' +
+			'.pm-catcard{cursor:default}' +
+			'.pm-catcard:hover{border-color:#2c313a;background:#14171c}';
 		var node = document.createElement('style');
 		node.id = 'pm-style';
 		node.textContent = css;
@@ -523,7 +535,77 @@
 				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you install them again.</p>';
 	}
 
+	// ---------------------------------------------------------- port catalog
+
+	function statusCount(status) {
+		return (CATALOG && CATALOG.counts && CATALOG.counts[status]) || 0;
+	}
+
+	function catalogMods() {
+		var all = (CATALOG && CATALOG.mods) || [];
+		var query = String(state.catQuery || '').toLowerCase();
+		return all.filter(function (m) {
+			if (state.catStatus !== 'all' && m.status !== state.catStatus) return false;
+			if (!query) return true;
+			var haystack = [m.title, m.slug, m.description, (m.categories || []).join(' '), m.license].join(' ').toLowerCase();
+			return haystack.indexOf(query) >= 0;
+		});
+	}
+
+	var STATUS_LABEL = { ported: 'PORTED', planned: 'REBUILD PATH', no: 'CANNOT RUN HERE' };
+
+	function catalogCard(m) {
+		var status = m.status === 'ported' || m.status === 'no' ? m.status : 'planned';
+		return '<article class="pm-card pm-catcard">' +
+			'<div class="pm-top">' +
+				'<span class="pm-logo">' + (m.icon
+					? '<img src="' + esc(m.icon) + '" alt="" loading="lazy" onerror="this.remove()">'
+					: ico('cube', 14, '#8a6a22')) + '</span>' +
+				'<span class="pm-names"><span class="pm-name">' + esc(m.title) + '</span>' +
+					'<span class="pm-sub">' + esc(m.license || 'no licence listed') + ' \u00b7 ' + compact(m.downloads) + ' downloads</span></span>' +
+			'</div>' +
+			'<p class="pm-desc">' + esc(m.description) + '</p>' +
+			'<div class="pm-meta">' +
+				'<span class="pm-catchip ' + status + '">' + STATUS_LABEL[status] + '</span>' +
+				(m.newest ? '<span class="pm-chip">' + esc(m.newest) + '</span>' : '') +
+				'<span class="pm-chip">' + esc((m.loaders || []).join('/') || 'datapack') + '</span>' +
+			'</div>' +
+			'<p class="pm-catnote">' + esc(m.note) + '</p>' +
+			'<div class="pm-row pm-links">' +
+				(m.source
+					? '<a class="pm-link" href="' + esc(m.source) + '" target="_blank" rel="noopener noreferrer">SOURCE</a>'
+					: '<span class="pm-chip">no source repo</span>') +
+				'<a class="pm-link" href="https://modrinth.com/project/' + esc(m.slug) + '" target="_blank" rel="noopener noreferrer">MODRINTH</a>' +
+				(m.issues ? '<a class="pm-link" href="' + esc(m.issues) + '" target="_blank" rel="noopener noreferrer">ISSUES</a>' : '') +
+			'</div>' +
+		'</article>';
+	}
+
+	function catalogBody() {
+		var all = (CATALOG && CATALOG.mods) || [];
+		if (!all.length) return '<div class="pm-state">Research catalog did not load - check launcher/mods-catalog.js.</div>';
+		var chips = [
+			['all', 'ALL ' + all.length],
+			['planned', 'REBUILD PATH ' + statusCount('planned')],
+			['ported', 'PORTED ' + statusCount('ported')],
+			['no', 'CANNOT RUN HERE ' + statusCount('no')]
+		];
+		var head = '<div class="pm-sum">' + chips.map(function (chip) {
+			return '<button class="pm-cat' + (state.catStatus === chip[0] ? ' on' : '') + '" data-mr="catstatus" data-value="' + chip[0] + '">' + chip[1] + '</button>';
+		}).join('') + '</div>' +
+			'<p class="pm-note">' + all.length + ' real Modrinth projects. Every title, icon, licence and source link above comes from ' +
+				'api.modrinth.com; the verdict under each one is Pretzel\'s own. <b>' + statusCount('ported') + '</b> of these are running in this client right now. ' +
+				'A browser tab has no JVM, so a jar can never execute here - a mod runs only after its behaviour is rebuilt in this client\'s Java and shipped in a TeaVM build. ' +
+				'REBUILD PATH means that is possible and planned; CANNOT RUN HERE means it needs a native binary, a GL shader stage, or the Fabric loader itself.</p>';
+		var rows = catalogMods();
+		if (!rows.length) return head + '<div class="pm-state">Nothing in the catalog matched that filter.</div>';
+		return head + '<div class="pm-grid">' + rows.map(catalogCard).join('') + '</div>' +
+			'<div class="pm-page"><span>' + rows.length + ' of ' + all.length + ' shown \u00b7 catalog built ' +
+				esc(String((CATALOG && CATALOG.generated) || '').slice(0, 10)) + '</span></div>';
+	}
+
 	function bodyHTML() {
+		if (state.mode === 'catalog') return catalogBody();
 		if (state.mode === 'mine') return ownHTML();
 		if (state.loading) return '<div class="pm-state">Searching Modrinth for ' + GAME_VERSION + ' mods\u2026</div>';
 		if (state.error) {
@@ -552,8 +634,9 @@
 			'<div class="pm-head"><span class="pm-title">Mods \u00b7 ' + GAME_VERSION + '</span>' +
 				'<span class="pm-count">live from api.modrinth.com \u00b7 ' + count + ' in this account</span></div>' +
 			'<p class="pm-line">Every project below is a real Modrinth response filtered to Minecraft ' + GAME_VERSION + '. ' +
-				'<b>INSTALL</b> downloads the file into the signed-in account\'s own storage and links it to the client - ' +
-				'no manual downloads, no copies shared between accounts.</p>' +
+				'<b>INSTALL</b> downloads the file into the signed-in account\'s own storage - no manual downloads, no copies shared between accounts. ' +
+				'It does not make the mod run: this client is Java compiled to JavaScript ahead of time, so only features rebuilt into the client source can execute. ' +
+				'The <b>PORT CATALOG</b> tab lists what has been researched and what can actually be rebuilt for this client.</p>' +
 			'<div class="pm-bar">' +
 				['relevance', 'downloads', 'follows', 'newest', 'updated'].map(function (index) {
 					var labels = { relevance: 'RELEVANCE', downloads: 'DOWNLOADS', follows: 'FOLLOWS', newest: 'NEWEST', updated: 'UPDATED' };
@@ -561,7 +644,10 @@
 						'" data-mr="index" data-value="' + index + '">' + labels[index] + '</button>';
 				}).join('') +
 				'<button class="pm-tab' + (state.mode === 'mine' ? ' on' : '') + '" data-mr="own">MY MODS ' + count + '</button>' +
-				'<input class="pm-search" id="pm-search" type="search" placeholder="Search Modrinth ' + GAME_VERSION + ' mods\u2026" value="' + esc(state.query) + '">' +
+				'<button class="pm-tab' + (state.mode === 'catalog' ? ' on' : '') + '" data-mr="catalog">PORT CATALOG ' + ((CATALOG && CATALOG.mods) ? CATALOG.mods.length : 0) + '</button>' +
+				'<input class="pm-search" id="pm-search" type="search" placeholder="' +
+					(state.mode === 'catalog' ? 'Search the research catalog\u2026' : 'Search Modrinth ' + GAME_VERSION + ' mods\u2026') +
+					'" value="' + esc(state.mode === 'catalog' ? state.catQuery : state.query) + '">' +
 			'</div>' +
 			'<div class="pm-cats">' + CATEGORIES.map(function (cat) {
 				return '<button class="pm-cat' + (state.cat === cat.id ? ' on' : '') + '" data-mr="cat" data-value="' + cat.id + '">' + cat.label + '</button>';
@@ -584,6 +670,13 @@
 	function wire() {
 		document.addEventListener('input', function (event) {
 			if (event.target.id !== 'pm-search') return;
+			if (state.mode === 'catalog') {
+				state.catQuery = event.target.value;
+				render();
+				var again = document.getElementById('pm-search');
+				if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+				return;
+			}
 			state.query = event.target.value;
 			state.page = 1;
 			clearTimeout(wire.timer);
@@ -631,6 +724,17 @@
 				var id = el.getAttribute('data-id');
 				if (!id) return;
 				doInstall(id, el.getAttribute('data-title'), el.getAttribute('data-version') || '');
+				return;
+			}
+			if (act === 'catalog') {
+				state.mode = 'catalog';
+				state.detail = null;
+				render();
+				return;
+			}
+			if (act === 'catstatus') {
+				state.catStatus = el.getAttribute('data-value');
+				render();
 				return;
 			}
 			if (act === 'own') {

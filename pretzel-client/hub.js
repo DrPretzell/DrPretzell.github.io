@@ -172,6 +172,14 @@
 			'.pzh-foot{display:flex;align-items:center;gap:8px;padding:8px 11px;border-top:2px solid #26262c;background:#0d0d11;' +
 				'font-size:8px;letter-spacing:.08em;color:#777784;text-transform:uppercase}' +
 			'.pzh-foot .sp{flex:1}' +
+			'#pzh-bar{position:fixed;top:10px;right:10px;z-index:45;display:none;align-items:center;gap:4px}' +
+			'body.playing #pzh-bar{display:flex}' +
+			'#pzh-account{display:inline-flex;align-items:center;gap:5px;border:2px solid #f2b84b;background:#0b0b0dcc;color:#f2b84b;' +
+				'font:inherit;font-size:8px;letter-spacing:.06em;padding:3px 6px 3px 3px;cursor:pointer;font-family:"PretzelPixel",ui-monospace,monospace}' +
+			'#pzh-account img{width:14px;height:14px;display:block;image-rendering:pixelated}' +
+			'#pzh-account:hover{background:#f2b84b;color:#120d02}' +
+			'#pzh-chain{border:2px solid #f2b84b;background:#0b0b0dcc;color:#f2b84b;padding:3px 5px;cursor:pointer;display:grid;place-items:center}' +
+			'#pzh-chain:hover{background:#f2b84b;color:#120d02}' +
 			'#pzh-pill{position:fixed;right:12px;bottom:12px;z-index:40;display:none;gap:5px;align-items:center;border:2px solid #f2b84b;' +
 				'background:#0b0b0dcc;color:#f2b84b;font:inherit;font-size:9px;letter-spacing:.1em;padding:7px 10px;cursor:pointer;' +
 				'font-family:"PretzelPixel",ui-monospace,monospace}' +
@@ -349,6 +357,14 @@
 		setTimeout(function () { flash.classList.remove('on'); }, 2200);
 	}
 
+	function renderBar() {
+		var name = accountName() || 'Guest';
+		return '<button id="pzh-account" type="button" title="Client hub">' +
+			'<img src="https://mc-heads.net/avatar/' + encodeURIComponent(name) + '/16" alt="" onerror="this.remove()">' +
+			'<span>' + esc(name) + '</span></button>' +
+			'<button id="pzh-chain" type="button" title="Link Socials">' + ico('link', 12) + '</button>';
+	}
+
 	function wire() {
 		if (window.__pzhWired) return;
 		window.__pzhWired = true;
@@ -364,6 +380,20 @@
 		pill.innerHTML = ico('star', 10) + ' HUB';
 		pill.addEventListener('click', toggle);
 		document.body.appendChild(pill);
+
+		// Small account chip with the chain next to it, like the launchpad bar.
+		var bar = document.createElement('div');
+		bar.id = 'pzh-bar';
+		bar.innerHTML = renderBar();
+		bar.addEventListener('click', function (event) {
+			if (event.target.closest('#pzh-chain')) {
+				if (window.PretzelSocials) window.PretzelSocials.open();
+				else flashToast('LINK SOCIALS IS IN THE LAUNCHPAD');
+				return;
+			}
+			if (event.target.closest('#pzh-account')) toggle();
+		});
+		document.body.appendChild(bar);
 
 		var toast = document.createElement('div');
 		toast.id = 'pzh-toast';

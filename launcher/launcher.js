@@ -18,7 +18,6 @@ const MC_HEADS = 'https://mc-heads.net';
 const LS = {
 	accounts: 'pretzel.accounts.v1',
 	session: 'pretzel.session.v1',
-	installed: 'pretzel.installed.v1',
 	news: 'pretzel.news.v1',
 	newsSeeded: 'pretzel.news.seeded.v1',
 	pendingSkin: 'pretzel.pendingSkin.v1',
@@ -70,11 +69,6 @@ const state = {
 	serverTag: '',
 	serverPage: 1,
 	serverDetail: null,
-	mods: null,
-	modsError: '',
-	modsLoading: false,
-	installing: {},
-	modsQuery: '',
 	friendTab: 'friends',
 	pendingSkin: null,
 	newsDraft: null,
@@ -247,69 +241,6 @@ async function loadServers(force) {
 	state.serverError = '';
 	state.serverPage = 1;
 	if (state.view === 'servers') renderView();
-}
-
-async function loadMods(force) {
-	// The Lunar-style Explore page is mounted from mods.js.
-}
-
-function installedList() {
-	return read(LS.installed, []);
-}
-
-function isInstalled(id) {
-	return installedList().some((m) => m.id === id);
-}
-
-async function installMod(mod) {
-	if (state.installing[mod.id] || isInstalled(mod.id)) return;
-	state.installing[mod.id] = true;
-	try {
-		// Nothing is fetched per mod: every mod is compiled into the client.
-		const version = null;
-		const file = null;
-		const payload = {
-			id: mod.id,
-			title: mod.title,
-			slug: mod.slug,
-			source: 'builtin',
-			version: version ? version.version_number : '',
-			fileUrl: file ? file.url : '',
-			fileName: file ? file.filename : '',
-		};
-		const saved = await fetch('/api/launcher/mods', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action: 'install', mod: payload }),
-		});
-		const result = saved.ok ? await saved.json().catch(function () { return {}; }) : {};
-		const list = installedList().filter((m) => m.id !== mod.id);
-		list.push(Object.assign({}, mod, {
-			version: payload.version,
-			file: result && result.downloaded ? payload.fileName : '',
-			bytes: result ? result.bytes || 0 : 0,
-		}));
-		write(LS.installed, list);
-		toast(mod.title + ' installed', 'good');
-	} catch (e) {
-		toast('Could not install ' + mod.title, 'bad');
-	} finally {
-		delete state.installing[mod.id];
-		render();
-	}
-}
-
-async function uninstallMod(id) {
-	write(LS.installed, installedList().filter((m) => m.id !== id));
-	try {
-		await fetch('/api/launcher/mods', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action: 'remove', id }),
-		});
-	} catch (e) { /* ignore */ }
-	toast('Mod removed');
-	render();
 }
 
 // ------------------------------------------------------------------ auth
@@ -842,10 +773,19 @@ function serverCard(server) {
 			'<div class="server-tags">' + tags + '</div>' +
 			'<div class="server-actions">' +
 				'<button class="btn join" data-action="join:' + esc(server.id) + '">Join Server</button>' +
+				(isSaved(server)
+					? '<button class="btn copy saved" disabled>In Server List</button>'
+					: '<button class="btn copy" data-action="save-server:' + esc(server.id) + '">Add to Server List</button>') +
 				'<button class="btn copy" data-action="copy:' + esc(server.id) + '">Copy IP</button>' +
 			'</div>' +
 		'</div>' +
 	'</article>';
+}
+
+function isSaved(server) {
+	const manual = read('pretzel.manualServers.v1', []);
+	const address = String(server.address || '').toLowerCase();
+	return Array.isArray(manual) && manual.some((m) => String(m.address || '').toLowerCase() === address);
 }
 
 function filteredServers() {
@@ -943,26 +883,7 @@ function watchServerVideos() {
 
 // ---------------------------------------------------------------- mods
 
-function modRow(mod) {
-	const installed = isInstalled(mod.id);
-	return '' +
-	'<div class="mod-row">' +
-		'<div class="mod-icon" style="background-image:url(\'' + esc(mod.icon || '') + '\')"></div>' +
-		'<div class="mod-main">' +
-			'<div class="mod-title"><h4>' + esc(mod.title) + '</h4></div>' +
-			'<p class="mod-desc">' + esc(mod.description) + '</p>' +
-			'<div class="mod-meta"><span>' + compact(mod.downloads) + ' downloads</span>' +
-				'<span>by ' + esc(mod.author || 'unknown') + '</span>' +
-				'<span class="tagpill">1.21.11</span><span class="tagpill">Fabric</span></div>' +
-		'</div>' +
-		'<div class="mod-side">' +
-			(installed
-				? '<button class="btn installed" data-action="uninstall:' + esc(mod.id) + '">Installed</button>'
-				: '<button class="btn install" data-action="install:' + esc(mod.id) + '">Install</button>') +
-		'</div>' +
-	'</div>';
-}
-
+// The Mods page itself is pretzel-mods-root, filled by launcher/modrinth.js.
 function modsView() {
 	return '<div id="pretzel-mods-root"></div>';
 }
@@ -1076,7 +997,6 @@ document.addEventListener('click', async (event) => {
 		state.modal = null;
 		render();
 		if (state.view === 'servers') loadServers(false);
-		if (state.view === 'mods') loadMods(false);
 		return;
 	}
 	if (action === 'launch') {
@@ -1178,11 +1098,6 @@ document.addEventListener('click', async (event) => {
 		loadServers(true);
 		return;
 	}
-	if (action === 'reload-mods') {
-		state.mods = null;
-		loadMods(true);
-		return;
-	}
 	if (action.startsWith('server-tag:')) {
 		state.serverTag = action.slice(11);
 		state.serverPage = 1;
@@ -1196,26 +1111,33 @@ document.addEventListener('click', async (event) => {
 		if (view) view.scrollTo({ top: 0, behavior: 'smooth' });
 		return;
 	}
+	if (action.startsWith('save-server:')) {
+		const server = findServer(action.slice(12));
+		if (!server || !server.address || isSaved(server)) return;
+		const manual = read('pretzel.manualServers.v1', []);
+		const list = Array.isArray(manual) ? manual : [];
+		list.push({
+			id: 'manual-' + Date.now(),
+			name: server.name,
+			address: server.address,
+			description: server.description || '',
+			tags: server.tags || [],
+			players: server.players || 0,
+			custom: true,
+		});
+		write('pretzel.manualServers.v1', list);
+		const saved = list[list.length - 1];
+		state.servers = (state.servers || []).concat([saved]);
+		toast(server.name + ' added to your server list', 'good');
+		renderView();
+		return;
+	}
 	if (action.startsWith('server:')) {
 		const server = findServer(action.slice(7));
 		if (server) {
 			state.serverDetail = server;
 			openModal({ type: 'server' });
 		}
-		return;
-	}
-	if (action.startsWith('modtab:')) {
-		state.modSource = action.slice(7);
-		renderView();
-		return;
-	}
-	if (action.startsWith('install:')) {
-		const mod = (state.mods || []).find((m) => m.id === action.slice(8));
-		if (mod) await installMod(mod);
-		return;
-	}
-	if (action.startsWith('uninstall:')) {
-		await uninstallMod(action.slice(10));
 		return;
 	}
 	if (action.startsWith('join:')) {
@@ -1450,10 +1372,6 @@ document.addEventListener('keydown', (event) => {
 		state.serverQuery = document.activeElement.value;
 		state.serverPage = 1;
 		renderView();
-	} else if (id === 'modSearch') {
-		state.modsQuery = document.activeElement.value;
-		state.mods = null;
-		loadMods(true);
 	} else if (id === 'friendName') {
 		const button = document.querySelector('[data-action="add-friend"]');
 		if (button) button.click();

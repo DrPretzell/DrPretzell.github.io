@@ -2,10 +2,14 @@
 //
 // The browser client is Java compiled to JavaScript, so a downloaded jar has
 // nowhere to run inside the page. This module turns the account's stored jars
-// into a .mrpack: a zip holding modrinth.index.json plus the jars under
-// overrides/mods/. Modrinth App, Prism Launcher and MultiMC all import that,
-// and what they build is a real Java 1.21.11 instance whose mods/ folder holds
-// these exact files - which is where the mods actually run.
+// into .mrpack files: each is a zip holding modrinth.index.json plus the jars
+// under overrides/mods/. Modrinth App, Prism Launcher and MultiMC all import
+// that, and what they build is a real Java 1.21.11 instance whose mods/ folder
+// holds these exact files - which is where the mods actually run.
+//
+// One pack per loader. A single pack cannot mix Fabric and NeoForge jars, so
+// the account is grouped and every group gets its own .mrpack; nothing is
+// dropped because some other mod happened to be more popular.
 //
 // The zip is written here (stored, no compression) so the page needs no
 // library and no server; every jar keeps its bytes and its verified hash.
@@ -13,7 +17,10 @@
 	'use strict';
 
 	var GAME_VERSION = '1.21.11';
-	var FABRIC_META = 'https://meta.fabricmc.net/v2/versions/loader/';
+	var FABRIC_META = 'https://meta.fabricmc.net/v2/versions/loader/' + GAME_VERSION;
+	var QUILT_META = 'https://meta.quiltmc.org/v3/versions/loader';
+	var NEOFORGE_VERSIONS = 'https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge';
+	var FORGE_PROMOS = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
 
 	// ------------------------------------------------------------------- crc32
 
@@ -128,35 +135,76 @@
 
 	// ---------------------------------------------------------------- loaders
 
-	function loaderKind(entry) {
+	var LOADERS = ['fabric', 'neoforge', 'forge'];
+
+	function loaderOf(entry) {
 		var loaders = (entry.loaders || []).map(function (l) { return String(l).toLowerCase(); });
-		if (loaders.indexOf('neoforge') >= 0 || loaders.indexOf('forge') >= 0) return 'neoforge';
-		return 'fabric';
+		if (loaders.indexOf('neoforge') >= 0) return 'neoforge';
+		if (loaders.indexOf('forge') >= 0) return 'forge';
+		return 'fabric'; // fabric and quilt: a Quilt instance loads Fabric mods
 	}
 
-	/** The loader build a launcher should install; Fabric publishes the list. */
+	function dependencyKey(kind) {
+		return kind === 'neoforge' ? 'neoforge' : kind === 'forge' ? 'forge' : 'fabric-loader';
+	}
+
+	async function getJson(url) {
+		var response = await fetch(url, { headers: { Accept: 'application/json' } });
+		if (!response.ok) return null;
+		return response.json();
+	}
+
+	/** The loader build a launcher should install for this pack. */
 	async function loaderVersion(kind) {
-		if (kind !== 'fabric') return null;
 		try {
-			var response = await fetch(FABRIC_META + GAME_VERSION, { headers: { Accept: 'application/json' } });
-			if (!response.ok) return null;
-			var list = await response.json();
-			var first = Array.isArray(list) ? list[0] : null;
-			return first && first.loader && first.loader.version ? String(first.loader.version) : null;
+			if (kind === 'fabric') {
+				var fabric = await getJson(FABRIC_META);
+				return Array.isArray(fabric) && fabric[0] && fabric[0].loader ? String(fabric[0].loader.version) : null;
+			}
+			if (kind === 'neoforge') {
+				var neoforge = await getJson(NEOFORGE_VERSIONS);
+				var versions = (neoforge && neoforge.versions) || [];
+				// NeoForge numbers releases 21.11.x for Minecraft 1.21.11.
+				var prefix = GAME_VERSION.split('.').slice(1).join('.') + '.';
+				var mine = versions.filter(function (v) { return String(v).indexOf(prefix) === 0; });
+				mine.sort(function (a, b) {
+					var pa = String(a).split('.').map(Number);
+					var pb = String(b).split('.').map(Number);
+					for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+						if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+					}
+					return 0;
+				});
+				return mine.length ? String(mine[mine.length - 1]) : null;
+			}
+			if (kind === 'forge') {
+				var promos = await getJson(FORGE_PROMOS);
+				var latest = promos && promos.promos && promos.promos[GAME_VERSION + '-latest'];
+				return latest ? GAME_VERSION + '-' + latest : null;
+			}
+			if (kind === 'quilt') {
+				var quilt = await getJson(QUILT_META);
+				return Array.isArray(quilt) && quilt[0] ? String(quilt[0].version) : null;
+			}
 		} catch (error) {
-			return null;
+			/* the pack is still valid without a pinned loader build */
 		}
+		return null;
 	}
 
 	function slug(value) {
 		return String(value || 'local').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'local';
 	}
 
+	function title(kind) {
+		return kind === 'neoforge' ? 'NeoForge' : kind === 'forge' ? 'Forge' : 'Fabric';
+	}
+
 	function readme(kind, version, count) {
 		return [
 			'Pretzel Client - Java mod pack',
 			'',
-			count + ' mods for Minecraft ' + GAME_VERSION + ' on ' + (kind === 'neoforge' ? 'NeoForge' : 'Fabric') + '.',
+			count + ' mods for Minecraft ' + GAME_VERSION + ' on ' + title(kind) + '.',
 			'',
 			'Import this .mrpack in Modrinth App, Prism Launcher or MultiMC.',
 			'The launcher creates a Java ' + GAME_VERSION + ' instance and copies the jars from',
@@ -165,11 +213,14 @@
 			'from any other download.',
 			'',
 			version
-				? 'This pack asks for ' + kind + '-loader ' + version + '; if your launcher offers a'
-				: 'Pick the latest ' + kind + ' loader for ' + GAME_VERSION + '; ',
+				? 'This pack asks for ' + dependencyKey(kind) + ' ' + version + '; if your launcher'
+				: 'Pick the newest ' + title(kind) + ' build for ' + GAME_VERSION + '; the mods',
 			version
-				? 'different build, use the newest one - the mods do not pin a loader build.'
-				: 'the mods do not pin a loader build.',
+				? 'offers a different build, use the newest one - the mods do not pin one.'
+				: 'do not pin a loader build.',
+			'',
+			'Fabric mods will not load in a Forge/NeoForge instance, so import every pack',
+			'this account produced; each one carries only the mods for its own loader.',
 			'',
 			'A browser tab has no JVM, so the Pretzel browser client cannot run these jars.',
 			'This pack is the path that installs them where they do run: Java.'
@@ -178,9 +229,57 @@
 
 	// --------------------------------------------------------------------- build
 
+	function packOne(kind, entries, store) {
+		return (async function () {
+			var account = store.account();
+			var version = await loaderVersion(kind);
+			var files = [];
+			var used = {};
+			for (var i = 0; i < entries.length; i++) {
+				var item = entries[i];
+				var record = null;
+				try { record = await store.file(item.id); } catch (error) { record = null; }
+				if (!record || !record.blob) continue;
+				var data = new Uint8Array(await record.blob.arrayBuffer());
+				var name = String(item.filename || (slug(item.title) + '.jar')).replace(/[\\/:*?"<>|]/g, '_');
+				if (!/\.jar$/i.test(name)) name += '.jar';
+				if (used[name]) {
+					used[name] += 1;
+					name = used[name] + '-' + name;
+				} else {
+					used[name] = 1;
+				}
+				files.push({ name: name, data: data });
+			}
+			if (!files.length) return null;
+
+			var index = {
+				formatVersion: 1,
+				game: 'minecraft',
+				versionId: 'pretzel-' + slug(account) + '-' + kind,
+				name: 'Pretzel Java Pack - ' + account + ' (' + title(kind) + ')',
+				summary: files.length + ' ' + title(kind) + ' mods picked on the Pretzel launchpad for Minecraft ' + GAME_VERSION + '.',
+				files: [],
+				dependencies: { minecraft: GAME_VERSION }
+			};
+			if (version) index.dependencies[dependencyKey(kind)] = version;
+
+			var zipEntries = [{ name: 'modrinth.index.json', data: utf8(JSON.stringify(index, null, 2)) }];
+			files.forEach(function (file) {
+				zipEntries.push({ name: 'overrides/mods/' + file.name, data: file.data });
+			});
+			zipEntries.push({ name: 'overrides/PRETZEL-README.txt', data: utf8(readme(kind, version, files.length)) });
+
+			var filename = 'pretzel-java-' + slug(account) + '-' + kind + '.mrpack';
+			download(zip(zipEntries), filename);
+			return { kind: kind, count: files.length, version: version, filename: filename };
+		})();
+	}
+
 	/**
-	 * build(store) -> { count, skipped, kind, version, filename }
+	 * build(store) -> { packs: [{ kind, count, version, filename }], total, skipped }
 	 * store is window.PretzelModStorage; its list() and file(id) carry the jars.
+	 * One .mrpack is downloaded per loader present in the account.
 	 */
 	async function build(store) {
 		if (!store) throw new Error('Mod storage did not load.');
@@ -190,55 +289,23 @@
 		});
 		if (!all.length) throw new Error('The Java pack is empty - add a mod first.');
 
-		var groups = { fabric: [], neoforge: [] };
-		all.forEach(function (item) { groups[loaderKind(item)].push(item); });
-		var kind = groups.fabric.length >= groups.neoforge.length ? 'fabric' : 'neoforge';
-		var picked = groups[kind];
-		var skipped = all.length - picked.length;
-		var version = await loaderVersion(kind);
-
-		var files = [];
-		var used = {};
-		for (var i = 0; i < picked.length; i++) {
-			var item = picked[i];
-			var record = null;
-			try { record = await store.file(item.id); } catch (error) { record = null; }
-			if (!record || !record.blob) continue;
-			var data = new Uint8Array(await record.blob.arrayBuffer());
-			var name = String(item.filename || (slug(item.title) + '.jar')).replace(/[\\/:*?"<>|]/g, '_');
-			if (!/\.jar$/i.test(name)) name += '.jar';
-			if (used[name]) {
-				used[name] += 1;
-				name = used[name] + '-' + name;
-			} else {
-				used[name] = 1;
-			}
-			files.push({ item: item, name: name, data: data });
-		}
-		if (!files.length) throw new Error('The stored jars could not be read back from this browser.');
-
-		var account = store.account();
-		var index = {
-			formatVersion: 1,
-			game: 'minecraft',
-			versionId: 'pretzel-' + slug(account),
-			name: 'Pretzel Java Pack - ' + account,
-			summary: files.length + ' Java mods picked on the Pretzel launchpad for Minecraft ' + GAME_VERSION + '.',
-			files: [],
-			dependencies: { minecraft: GAME_VERSION }
-		};
-		if (version) index.dependencies[kind + '-loader'] = version;
-
-		var entries = [{ name: 'modrinth.index.json', data: utf8(JSON.stringify(index, null, 2)) }];
-		files.forEach(function (file) {
-			entries.push({ name: 'overrides/mods/' + file.name, data: file.data });
+		var groups = {};
+		all.forEach(function (item) {
+			var kind = loaderOf(item);
+			(groups[kind] = groups[kind] || []).push(item);
 		});
-		entries.push({ name: 'overrides/PRETZEL-README.txt', data: utf8(readme(kind, version, files.length)) });
 
-		var filename = 'pretzel-java-' + slug(account) + '-' + kind + '.mrpack';
-		download(zip(entries), filename);
+		var packs = [];
+		for (var i = 0; i < LOADERS.length; i++) {
+			var kind = LOADERS[i];
+			if (!groups[kind]) continue;
+			var made = await packOne(kind, groups[kind], store);
+			if (made) packs.push(made);
+		}
+		if (!packs.length) throw new Error('The stored jars could not be read back from this browser.');
 
-		return { count: files.length, skipped: skipped, kind: kind, version: version, filename: filename };
+		var total = packs.reduce(function (sum, pack) { return sum + pack.count; }, 0);
+		return { packs: packs, total: total, skipped: all.length - total, account: store.account() };
 	}
 
 	function download(blob, filename) {

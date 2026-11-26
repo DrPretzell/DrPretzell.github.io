@@ -342,8 +342,10 @@
 		if (!pack) { toast('The Java pack writer did not load - check launcher/java-pack.js.', true); return; }
 		try {
 			var result = await pack.build(store);
-			toast('Java pack: ' + result.count + ' mods on ' + result.kind + ' - import ' + result.filename);
-			if (result.skipped) toast(result.skipped + ' mods for another loader were left out of this pack');
+			result.packs.forEach(function (made) {
+				toast('Java pack: ' + made.count + ' mods on ' + made.kind + ' - import ' + made.filename);
+			});
+			if (result.skipped) toast(result.skipped + ' stored files were not jars and stayed out');
 		} catch (error) {
 			toast(error && error.message ? error.message : 'Could not build the Java pack.', true);
 		}
@@ -553,8 +555,9 @@
 				'<input id="pm-import" type="file" accept="application/json,.json" style="display:none">' +
 			'</div>' +
 			'<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '. ' +
-				'DOWNLOAD JAVA PACK writes every enabled jar into a .mrpack - import it in Modrinth App, Prism or MultiMC and the ' +
-				'launcher installs a real Java ' + GAME_VERSION + ' instance with those jars in mods/. ' +
+				'DOWNLOAD JAVA PACK writes every enabled jar into a .mrpack, one per loader, because Fabric and NeoForge jars cannot ' +
+				'share a pack - import each one in Modrinth App, Prism or MultiMC and the launcher installs a real Java ' + GAME_VERSION +
+				' instance with those jars in mods/. ' +
 				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you add them again.</p>';
 	}
 

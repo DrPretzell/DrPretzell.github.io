@@ -2,9 +2,14 @@
 //
 // Every card, icon, author, version and file on this page is a response from
 // https://api.modrinth.com/v2 - nothing is hardcoded. The page is filtered to
-// Minecraft 1.21.11, the version this client builds, and INSTALL sends the real
-// file through PretzelModStorage: download, hash check, per-account storage,
-// then registered with the client so the hub and this page list the same mods.
+// Minecraft 1.21.11, the version this client builds, and ADD TO PACK sends the
+// real file through PretzelModStorage: download, hash check, per-account
+// storage, then registered so the account's Java pack can carry it.
+//
+// The pack is the point. A jar cannot execute in a browser tab, so MY MODS
+// writes the stored jars into a .mrpack (launcher/java-pack.js). Importing that
+// in Modrinth App, Prism or MultiMC builds a real Java 1.21.11 instance with the
+// jars in its mods/ folder, and that is where they run.
 (function () {
 	'use strict';
 
@@ -315,10 +320,10 @@
 				var text = total ? Math.min(99, Math.round((got / total) * 100)) + '%' : human(got);
 				setProgress(projectId, text);
 			});
-			toast((title || project.title) + ' installed to your account storage');
+			toast((title || project.title) + ' added to your Java pack');
 			state.installing[projectId] = '';
-			if (!entry.loadable) {
-				toast('Saved to your account - Java mods only run when they are built into the client (Pretzel Essentials)', true);
+			if (entry.kind === 'java-jar') {
+				toast('Stored and hash-checked - DOWNLOAD JAVA PACK in MY MODS installs it in Java');
 			}
 			if (state.mode === 'mine') await refreshUpdates();
 		} catch (error) {
@@ -327,6 +332,20 @@
 		} finally {
 			delete state.installing[projectId];
 			render();
+		}
+	}
+
+	async function buildJavaPack() {
+		var store = storage();
+		var pack = window.PretzelJavaPack;
+		if (!store) { toast('Mod storage is not loaded on this page.', true); return; }
+		if (!pack) { toast('The Java pack writer did not load - check launcher/java-pack.js.', true); return; }
+		try {
+			var result = await pack.build(store);
+			toast('Java pack: ' + result.count + ' mods on ' + result.kind + ' - import ' + result.filename);
+			if (result.skipped) toast(result.skipped + ' mods for another loader were left out of this pack');
+		} catch (error) {
+			toast(error && error.message ? error.message : 'Could not build the Java pack.', true);
 		}
 	}
 
@@ -357,10 +376,10 @@
 			return '<button class="pm-add" disabled data-progress="' + esc(projectId) + '">' + esc(busy) + '</button>';
 		}
 		if (entry && !versionId) {
-			return '<button class="pm-add installed" data-mr="own">IN CLIENT</button>';
+			return '<button class="pm-add installed" data-mr="own">IN PACK</button>';
 		}
 		return '<button class="pm-add" data-mr="install" data-id="' + esc(projectId) + '" data-title="' + esc(title || '') +
-			'" data-version="' + esc(versionId || '') + '">INSTALL</button>';
+			'" data-version="' + esc(versionId || '') + '">ADD TO PACK</button>';
 	}
 
 	var JAVA_LOADERS = ['fabric', 'forge', 'neoforge', 'quilt', 'liteloader', 'rift'];
@@ -485,15 +504,16 @@
 				'<p style="margin-top:0">' + esc(p.description) + '</p>' +
 				'<div class="pm-meta"><span class="pm-chip ok">' + GAME_VERSION + '</span>' +
 					'<span class="pm-chip">' + esc((p.loaders || []).filter(function (l) { return l !== 'minecraft'; }).join(' / ') || 'datapack') + '</span>' +
-					(entry ? '<span class="pm-chip ok">IN CLIENT ' + esc(entry.version) + '</span>' : '') + '</div>' +
+					(entry ? '<span class="pm-chip ok">IN PACK ' + esc(entry.version) + '</span>' : '') + '</div>' +
 				'<h4>VERSIONS FOR ' + GAME_VERSION + '</h4>' + versionsHTML() +
 				(linksHTML(p) ? '<h4>PROJECT LINKS</h4>' + linksHTML(p) : '') +
 				dependenciesHTML() +
 				(bodyText ? '<h4>ABOUT</h4><p>' + esc(bodyText.slice(0, 900)) + (bodyText.length > 900 ? '\u2026' : '') + '</p>' : '') +
 				(state.installError ? '<p class="pm-note" style="border-color:#5a2a2a;color:#ffb4b4">' + esc(state.installError) + '</p>' : '') +
-				'<p class="pm-note">Installing stores the real file in this account\'s storage and registers it with the client. ' +
-					'The client is Java compiled to JavaScript ahead of time, so a downloaded jar can be kept, verified and updated, ' +
-					'but only mods built into the client (Pretzel Essentials) run in game.</p>' +
+				'<p class="pm-note">ADD TO PACK downloads the real file, checks the SHA-1 Modrinth published, and files it in this ' +
+					'account\'s Java pack. A jar cannot run inside a browser tab, so MY MODS exports the pack as a .mrpack: ' +
+					'import it into Modrinth App, Prism or MultiMC and the launcher builds a Java ' + GAME_VERSION +
+					' instance with these exact jars in mods/ - that is where they run.</p>' +
 				'<p class="pm-note">Source: api.modrinth.com/v2 \u00b7 project ' + esc(p.id) + '</p>' +
 			'</div>' +
 		'</div></div>';
@@ -527,12 +547,15 @@
 			'</div>';
 		}).join('') +
 			'<div class="pm-bar" style="margin-top:10px">' +
+				'<button class="pm-add" data-mr="javapack">DOWNLOAD JAVA PACK (.mrpack)</button>' +
 				'<button class="pm-add ghost" data-mr="export">EXPORT MANIFEST</button>' +
 				'<button class="pm-add ghost" data-mr="import">IMPORT MANIFEST</button>' +
 				'<input id="pm-import" type="file" accept="application/json,.json" style="display:none">' +
 			'</div>' +
 			'<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '. ' +
-				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you install them again.</p>';
+				'DOWNLOAD JAVA PACK writes every enabled jar into a .mrpack - import it in Modrinth App, Prism or MultiMC and the ' +
+				'launcher installs a real Java ' + GAME_VERSION + ' instance with those jars in mods/. ' +
+				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you add them again.</p>';
 	}
 
 	// ---------------------------------------------------------- port catalog
@@ -631,12 +654,13 @@
 		var count = installedCount();
 		var store = storage();
 		root.innerHTML = '<div class="pm-wrap">' +
-			'<div class="pm-head"><span class="pm-title">Mods \u00b7 ' + GAME_VERSION + '</span>' +
-				'<span class="pm-count">live from api.modrinth.com \u00b7 ' + count + ' in this account</span></div>' +
+			'<div class="pm-head"><span class="pm-title">Mods \u00b7 ' + GAME_VERSION + ' \u00b7 Java</span>' +
+				'<span class="pm-count">live from api.modrinth.com \u00b7 ' + count + ' in this account\'s Java pack</span></div>' +
 			'<p class="pm-line">Every project below is a real Modrinth response filtered to Minecraft ' + GAME_VERSION + '. ' +
-				'<b>INSTALL</b> downloads the file into the signed-in account\'s own storage - no manual downloads, no copies shared between accounts. ' +
-				'It does not make the mod run: this client is Java compiled to JavaScript ahead of time, so only features rebuilt into the client source can execute. ' +
-				'The <b>PORT CATALOG</b> tab lists what has been researched and what can actually be rebuilt for this client.</p>' +
+				'<b>ADD TO PACK</b> downloads the jar, verifies the SHA-1 Modrinth publishes, and files it in this account\'s Java pack. ' +
+				'<b>DOWNLOAD JAVA PACK</b> in MY MODS writes those jars into a .mrpack; Modrinth App, Prism or MultiMC imports it as a real ' +
+				'Java ' + GAME_VERSION + ' instance, which is where the mods run. The <b>PORT CATALOG</b> tab answers the separate ' +
+				'question of what could be rebuilt inside the browser client.</p>' +
 			'<div class="pm-bar">' +
 				['relevance', 'downloads', 'follows', 'newest', 'updated'].map(function (index) {
 					var labels = { relevance: 'RELEVANCE', downloads: 'DOWNLOADS', follows: 'FOLLOWS', newest: 'NEWEST', updated: 'UPDATED' };
@@ -757,6 +781,10 @@
 					toast('Removed from ' + storage().account() + ' storage');
 					render();
 				});
+				return;
+			}
+			if (act === 'javapack') {
+				buildJavaPack();
 				return;
 			}
 			if (act === 'export') {

@@ -515,7 +515,7 @@
 				'<p class="pm-note">ADD TO PACK downloads the real file, checks the SHA-1 Modrinth published, and files it in this ' +
 					'account\'s Java pack. A jar cannot run inside a browser tab, so MY MODS exports the pack as a .mrpack: ' +
 					'import it into Modrinth App, Prism or MultiMC and the launcher builds a Java ' + GAME_VERSION +
-					' instance with these exact jars in mods/ - that is where they run.</p>' +
+					' instance with these exact jars in mods/ - that is where they run. The browser itself is a build, not an install: the client repo vendors a build-time Fabric mod-loader (modloader/PRETZEL.md) that weaves jars into a client during a build, and its port to ' + GAME_VERSION + ' is unfinished.</p>' +
 				'<p class="pm-note">Source: api.modrinth.com/v2 \u00b7 project ' + esc(p.id) + '</p>' +
 			'</div>' +
 		'</div></div>';
@@ -557,7 +557,7 @@
 			'<p class="pm-note">Account storage: ' + human(store.usage()) + ' for ' + esc(store.account()) + '. ' +
 				'DOWNLOAD JAVA PACK writes every enabled jar into a .mrpack, one per loader, because Fabric and NeoForge jars cannot ' +
 				'share a pack - import each one in Modrinth App, Prism or MultiMC and the launcher installs a real Java ' + GAME_VERSION +
-				' instance with those jars in mods/. ' +
+				' instance with those jars in mods/. The browser path is the vendored build-time mod-loader in the client repo: Fabric jars woven in during a build, never installed into a running tab. ' +
 				'Exported manifests carry ids, versions and enabled state; imported entries are registered without their file until you add them again.</p>';
 	}
 

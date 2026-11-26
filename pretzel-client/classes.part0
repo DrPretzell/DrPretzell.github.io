@@ -62468,7 +62468,7 @@ $rt_java.ji_PrintStream_print = ($this, $s) => {
     }}
     $rt_nativeThread().push($this, $s, var$2, $ptr);
 };
-$rt_java.ji_PrintStream_println1 = ($this, $s) => {
+$rt_java.ji_PrintStream_println = ($this, $s) => {
     let var$2, $ptr, $tmp;
     $ptr = 0;
     if ($rt_resuming()) {
@@ -62496,7 +62496,7 @@ $rt_java.ji_PrintStream_println1 = ($this, $s) => {
     }}
     $rt_nativeThread().push($this, $s, var$2, $ptr);
 };
-$rt_java.ji_PrintStream_println0 = ($this, $s) => {
+$rt_java.ji_PrintStream_println1 = ($this, $s) => {
     let var$2, $ptr, $tmp;
     $ptr = 0;
     if ($rt_resuming()) {
@@ -62524,7 +62524,7 @@ $rt_java.ji_PrintStream_println0 = ($this, $s) => {
     }}
     $rt_nativeThread().push($this, $s, var$2, $ptr);
 };
-$rt_java.ji_PrintStream_println = $this => {
+$rt_java.ji_PrintStream_println0 = $this => {
     let var$1, $ptr, $tmp;
     $ptr = 0;
     if ($rt_resuming()) {
@@ -221285,7 +221285,7 @@ $rt_java.nmcr_LevelRenderer_addParticlesPass = ($this, $p_363357_, $p_418328_) =
         $resourcehandle = $this.$targets.$main0;
         $ptr = 4;
     case 4:
-        cmbf_FrameGraphBuilder$Pass_reads($p_363357_, $resourcehandle);
+        $rt_java.cmbf_FrameGraphBuilder$Pass_reads($p_363357_, $resourcehandle);
         if ($rt_suspending()) {
             break main;
         }
@@ -255686,7 +255686,7 @@ $rt_java.nmwlb_ComposterBlock_extractProduce = ($p_270467_, $p_51999_, $p_52000_
         if ($rt_suspending()) {
             break main;
         }
-        $itementity = nms_SoundEvents_COMPOSTER_EMPTY;
+        $itementity = $rt_java.nms_SoundEvents_COMPOSTER_EMPTY;
         nms_SoundSource_$callClinit();
         $p_270467_ = nms_SoundSource_BLOCKS;
         var$10 = 1.0;
@@ -495602,7 +495602,8 @@ function nms_LoggedPrintStream() {
     this.$name158 = null;
 }
 $rt_java.nms_LoggedPrintStream_LOGGER = null;
-let nms_LoggedPrintStream_$_teavm_clinitCalled_$ = false,
+let nms_LoggedPrintStream_LOGGING = null,
+nms_LoggedPrintStream_$_teavm_clinitCalled_$ = false,
 nms_LoggedPrintStream_$callClinit = () => {
     let $ptr = 0;
     if ($rt_resuming()) {
@@ -495659,27 +495660,98 @@ $rt_java.nms_LoggedPrintStream__init_ = (var_0, var_1) => {
     nms_LoggedPrintStream__init_(var_2, var_0, var_1);
     return var_2;
 };
-$rt_java.nms_LoggedPrintStream_println = ($this, $p_135957_) => {
-    let $ptr, $tmp;
+let nms_LoggedPrintStream_println = ($this, $p_135957_) => {
+    let var$2, var$3, $$je, $ptr, $tmp;
     $ptr = 0;
     if ($rt_resuming()) {
         let $thread = $rt_nativeThread();
-        $ptr = $thread.pop();$p_135957_ = $thread.pop();$this = $thread.pop();
+        $ptr = $thread.pop();var$3 = $thread.pop();var$2 = $thread.pop();$p_135957_ = $thread.pop();$this = $thread.pop();
     }
     main: while (true) { switch ($ptr) {
     case 0:
         $ptr = 1;
     case 1:
-        $this.$logLine($p_135957_);
+        nms_LoggedPrintStream_$callClinit();
+        if ($rt_suspending()) {
+            break main;
+        }
+        var$2 = nms_LoggedPrintStream_LOGGING;
+        $ptr = 2;
+    case 2:
+        $tmp = jl_ThreadLocal_get(var$2);
+        if ($rt_suspending()) {
+            break main;
+        }
+        var$2 = $tmp;
+        if (var$2.$value22) {
+            $ptr = 4;
+            continue main;
+        }
+        var$3 = nms_LoggedPrintStream_LOGGING;
+        jl_Boolean_$callClinit();
+        var$2 = jl_Boolean_TRUE;
+        $ptr = 3;
+    case 3:
+        jl_ThreadLocal_set(var$3, var$2);
+        if ($rt_suspending()) {
+            break main;
+        }
+        try {
+            $ptr = 5;
+            continue main;
+        } catch ($$e) {
+            $$je = $rt_wrapException($$e);
+            $p_135957_ = $$je;
+
+        }
+        var$2 = nms_LoggedPrintStream_LOGGING;
+        var$3 = jl_Boolean_FALSE;
+        $ptr = 6;
+        continue main;
+    case 4:
+        $rt_java.ji_PrintStream_println($this, $p_135957_);
+        if ($rt_suspending()) {
+            break main;
+        }
+        return;
+    case 5:
+        a: {
+            try {
+                $this.$logLine($p_135957_);
+                if ($rt_suspending()) {
+                    break main;
+                }
+            } catch ($$e) {
+                $$je = $rt_wrapException($$e);
+                $p_135957_ = $$je;
+                break a;
+
+            }
+            $p_135957_ = nms_LoggedPrintStream_LOGGING;
+            var$2 = jl_Boolean_FALSE;
+            $ptr = 7;
+            continue main;
+        }
+        var$2 = nms_LoggedPrintStream_LOGGING;
+        var$3 = jl_Boolean_FALSE;
+        $ptr = 6;
+    case 6:
+        jl_ThreadLocal_set(var$2, var$3);
+        if ($rt_suspending()) {
+            break main;
+        }
+        $rt_throw($p_135957_);
+    case 7:
+        jl_ThreadLocal_set($p_135957_, var$2);
         if ($rt_suspending()) {
             break main;
         }
         return;
     default: $rt_invalidPointer();
     }}
-    $rt_nativeThread().push($this, $p_135957_, $ptr);
+    $rt_nativeThread().push($this, $p_135957_, var$2, var$3, $ptr);
 };
-$rt_java.nms_LoggedPrintStream_println0 = ($this, $p_135955_) => {
+$rt_java.nms_LoggedPrintStream_println = ($this, $p_135955_) => {
     let $ptr, $tmp;
     $ptr = 0;
     if ($rt_resuming()) {
@@ -495697,7 +495769,7 @@ $rt_java.nms_LoggedPrintStream_println0 = ($this, $p_135955_) => {
         $p_135955_ = $tmp;
         $ptr = 2;
     case 2:
-        $this.$logLine($p_135955_);
+        nms_LoggedPrintStream_println($this, $p_135955_);
         if ($rt_suspending()) {
             break main;
         }
@@ -495752,6 +495824,7 @@ $rt_java.nms_LoggedPrintStream__clinit_ = () => {
         }
         var$1 = $tmp;
         $rt_java.nms_LoggedPrintStream_LOGGER = var$1;
+        nms_LoggedPrintStream_LOGGING = jl_ThreadLocal_withInitial(new nms_LoggedPrintStream$_clinit_$lambda$_5_0);
         return;
     default: $rt_invalidPointer();
     }}
@@ -1006060,9 +1006133,9 @@ $rt_java.nms_SoundEvents_COD_AMBIENT = null;
 let nms_SoundEvents_COD_DEATH = null,
 nms_SoundEvents_COD_FLOP = null,
 nms_SoundEvents_COD_HURT = null,
-nms_SoundEvents_COMPARATOR_CLICK = null,
-nms_SoundEvents_COMPOSTER_EMPTY = null,
-nms_SoundEvents_COMPOSTER_FILL = null,
+nms_SoundEvents_COMPARATOR_CLICK = null;
+$rt_java.nms_SoundEvents_COMPOSTER_EMPTY = null;
+let nms_SoundEvents_COMPOSTER_FILL = null,
 nms_SoundEvents_COMPOSTER_FILL_SUCCESS = null,
 nms_SoundEvents_COMPOSTER_READY = null,
 nms_SoundEvents_CONDUIT_ACTIVATE = null,
@@ -1010920,7 +1010993,7 @@ $rt_java.nms_SoundEvents__clinit_ = () => {
             break main;
         }
         var$1 = $tmp;
-        nms_SoundEvents_COMPOSTER_EMPTY = var$1;
+        $rt_java.nms_SoundEvents_COMPOSTER_EMPTY = var$1;
         var$1 = $rt_s(9100);
         $ptr = 359;
     case 359:
@@ -1056074,6 +1056147,28 @@ $rt_java.ju_Comparator$comparing$lambda$_8_0_compare = (var$0, var$1, var$2) => 
     }}
     $rt_nativeThread().push(var$0, var$1, var$2, var$3, var$4, var$5, $ptr);
 };
+let nms_LoggedPrintStream$_clinit_$lambda$_5_0 = $rt_classWithoutFields();
+$rt_java.nms_LoggedPrintStream$_clinit_$lambda$_5_0_get = var$0 => {
+    let $ptr, $tmp;
+    $ptr = 0;
+    if ($rt_resuming()) {
+        let $thread = $rt_nativeThread();
+        $ptr = $thread.pop();var$0 = $thread.pop();
+    }
+    main: while (true) { switch ($ptr) {
+    case 0:
+        $ptr = 1;
+    case 1:
+        nms_LoggedPrintStream_$callClinit();
+        if ($rt_suspending()) {
+            break main;
+        }
+        jl_Boolean_$callClinit();
+        return jl_Boolean_FALSE;
+    default: $rt_invalidPointer();
+    }}
+    $rt_nativeThread().push(var$0, $ptr);
+};
 $rt_java.jtt_ValueRange = function() {
     let a = this; jl_Object.call(a);
     a.$minSmallest = Long_ZERO;
@@ -1068758,7 +1068853,7 @@ $rt_java.nmdr_VanillaRegistries$_clinit_$lambda$_9_31_run = (var$0, var$1) => {
         if ($rt_suspending()) {
             break main;
         }
-        var$6 = nmt_BiomeTags_SPAWNS_CORAL_VARIANT_ZOMBIE_NAUTILUS;
+        var$6 = $rt_java.nmt_BiomeTags_SPAWNS_CORAL_VARIANT_ZOMBIE_NAUTILUS;
         $ptr = 6;
     case 6:
         nmcr_Registries_$callClinit();
@@ -1313650,105 +1313745,4 @@ $rt_java.cggib_TypeAdapters$14_read = ($this, var$1) => {
     case 4:
         $tmp = jl_String_charAt(var$2, var$3);
         if ($rt_suspending()) {
-            break main;
-        }
-        var$3 = $tmp;
-        return jl_Character_valueOf(var$3);
-    case 5:
-        jl_AbstractStringBuilder_append(var$5, var$6);
-        if ($rt_suspending()) {
-            break main;
-        }
-        $ptr = 6;
-    case 6:
-        jl_AbstractStringBuilder_append(var$5, var$2);
-        if ($rt_suspending()) {
-            break main;
-        }
-        var$2 = $rt_s(15672);
-        $ptr = 7;
-    case 7:
-        jl_AbstractStringBuilder_append(var$5, var$2);
-        if ($rt_suspending()) {
-            break main;
-        }
-        $ptr = 8;
-    case 8:
-        $tmp = var$1.$getPreviousPath();
-        if ($rt_suspending()) {
-            break main;
-        }
-        var$1 = $tmp;
-        $ptr = 9;
-    case 9:
-        jl_AbstractStringBuilder_append(var$5, var$1);
-        if ($rt_suspending()) {
-            break main;
-        }
-        $ptr = 10;
-    case 10:
-        $tmp = jl_AbstractStringBuilder_toString(var$5);
-        if ($rt_suspending()) {
-            break main;
-        }
-        var$1 = $tmp;
-        jl_Throwable__init_(var$4, var$1);
-        $rt_throw(var$4);
-    default: $rt_invalidPointer();
-    }}
-    $rt_nativeThread().push($this, var$1, var$2, var$3, var$4, var$5, var$6, $ptr);
-};
-$rt_java.cggib_TypeAdapters$14_write = ($this, var$1, var$2) => {
-    let $ptr, $tmp;
-    $ptr = 0;
-    if ($rt_resuming()) {
-        let $thread = $rt_nativeThread();
-        $ptr = $thread.pop();var$2 = $thread.pop();var$1 = $thread.pop();$this = $thread.pop();
-    }
-    main: while (true) { switch ($ptr) {
-    case 0:
-        var$2 = var$2;
-        if (var$2 !== null) {
-            $ptr = 1;
-            continue main;
-        }
-        var$2 = null;
-        $ptr = 2;
-        continue main;
-    case 1:
-        $tmp = jl_String_valueOf(var$2);
-        if ($rt_suspending()) {
-            break main;
-        }
-        var$2 = $tmp;
-        $ptr = 2;
-    case 2:
-        var$1.$value4(var$2);
-        if ($rt_suspending()) {
-            break main;
-        }
-        return;
-    default: $rt_invalidPointer();
-    }}
-    $rt_nativeThread().push($this, var$1, var$2, $ptr);
-};
-let cggib_TypeAdapters$15 = $rt_classWithoutFields(cgg_TypeAdapter);
-$rt_java.cggib_TypeAdapters$15__init_ = $this => {
-    return;
-};
-$rt_java.cggib_TypeAdapters$15__init_0 = () => {
-    let var_0 = new cggib_TypeAdapters$15();
-    $rt_java.cggib_TypeAdapters$15__init_(var_0);
-    return var_0;
-};
-$rt_java.cggib_TypeAdapters$15_read = ($this, var$1) => {
-    let var$2, var$3, $ptr, $tmp;
-    $ptr = 0;
-    if ($rt_resuming()) {
-        let $thread = $rt_nativeThread();
-        $ptr = $thread.pop();var$3 = $thread.pop();var$2 = $thread.pop();var$1 = $thread.pop();$this = $thread.pop();
-    }
-    main: while (true) { switch ($ptr) {
-    case 0:
-        $ptr = 1;
-    case 1:
+    
